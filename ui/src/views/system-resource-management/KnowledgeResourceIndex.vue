@@ -81,6 +81,9 @@
             <span v-else-if="row.type === 2">{{
               $t('views.knowledge.knowledgeType.larkKnowledge')
             }}</span>
+            <span v-else-if="row.type === 4">{{
+              $t('views.knowledge.knowledgeType.workflowKnowledge')
+            }}</span>
             <span v-else>{{ $t('views.knowledge.knowledgeType.generalKnowledge') }}</span>
           </template>
         </el-table-column>
@@ -170,7 +173,7 @@
                   :title="$t('views.system.resource_management.management')"
                   @click="
                     router.push({
-                      path: `/knowledge/${row.id}/resource-management/document`,
+                      path: `/knowledge/${row.id}/resource-management/${row.type}/document`,
                     })
                   "
                 >
@@ -219,7 +222,7 @@
                   <el-dropdown-item
                     @click="
                       router.push({
-                        path: `/knowledge/${row.id}/resource-management/setting`,
+                        path: `/knowledge/${row.id}/resource-management/${row.type}/setting`,
                       })
                     "
                     v-if="permissionPrecise.edit()"

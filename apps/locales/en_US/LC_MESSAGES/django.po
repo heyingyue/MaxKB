@@ -8773,3 +8773,15 @@ msgstr ""
 
 msgid "Application top question statistics"
 msgstr ""
+
+msgid "SAML2 Metadata"
+msgstr ""
+
+msgid "SAML2 Log in"
+msgstr ""
+
+msgid "SAML2 SSO"
+msgstr ""
+
+msgid "Workflow"
+msgstr ""
