@@ -43,6 +43,7 @@ class AliyunBaiLianAsrSpeechToText(MaxKBBaseModel, BaseSpeechToText):
             self.speech_to_text(audio_file)
 
     def speech_to_text(self, audio_file):
+
         try:
 
             base64_audio = base64.b64encode(audio_file.read()).decode("utf-8")
@@ -70,3 +71,4 @@ class AliyunBaiLianAsrSpeechToText(MaxKBBaseModel, BaseSpeechToText):
 
         except Exception as err:
             maxkb_logger.error(f":Error: {str(err)}: {traceback.format_exc()}")
+            raise

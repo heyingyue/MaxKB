@@ -317,13 +317,13 @@ const delMulTag: (
 }
 const getKnowledgeWorkflowFormList: (
   knowledge_id: string,
-  type: 'loacl' | 'tool',
+  type: 'local' | 'tool',
   id: string,
   node: any,
   loading?: Ref<boolean>,
 ) => Promise<Result<any>> = (
   knowledge_id: string,
-  type: 'loacl' | 'tool',
+  type: 'local' | 'tool',
   id: string,
   node,
   loading,
@@ -337,14 +337,14 @@ const getKnowledgeWorkflowFormList: (
 }
 const getKnowledgeWorkflowDatasourceDetails: (
   knowledge_id: string,
-  type: 'loacl' | 'tool',
+  type: 'local' | 'tool',
   id: string,
   params: any,
   function_name: string,
   loading?: Ref<boolean>,
 ) => Promise<Result<any>> = (
   knowledge_id: string,
-  type: 'loacl' | 'tool',
+  type: 'local' | 'tool',
   id: string,
   params,
   function_name,
@@ -362,7 +362,69 @@ const workflowAction: (
   instance: Dict<any>,
   loading?: Ref<boolean>,
 ) => Promise<Result<any>> = (knowledge_id: string, instance, loading) => {
-  return post(`${prefix.value}/${knowledge_id}/action`, instance, {}, loading)
+  return post(`${prefix.value}/${knowledge_id}/debug`, instance, {}, loading)
+}
+
+const workflowUpload: (
+  knowledge_id: string,
+  instance: Dict<any>,
+  loading?: Ref<boolean>,
+) => Promise<Result<any>> = (knowledge_id: string, instance, loading) => {
+  return post(`${prefix.value}/${knowledge_id}/upload_document`, instance, {}, loading)
+}
+
+const publish: (knowledge_id: string, loading?: Ref<boolean>) => Promise<Result<any>> = (
+  knowledge_id: string,
+  loading,
+) => {
+  return put(`${prefix.value}/${knowledge_id}/publish`, {}, {}, loading)
+}
+
+/**
+ * 保存知识库工作流
+ * @param knowledge_id
+ * @param data
+ * @param loading
+ * @returns
+ */
+const putKnowledgeWorkflow: (
+  knowledge_id: string,
+  data: any,
+  loading?: Ref<boolean>,
+) => Promise<Result<any>> = (knowledge_id, data, loading) => {
+  return put(`${prefix.value}/${knowledge_id}/workflow`, data, undefined, loading)
+}
+
+const listKnowledgeVersion: (
+  knowledge_id: string,
+  loading?: Ref<boolean>,
+) => Promise<Result<any>> = (knowledge_id: string, loading) => {
+  return get(`${prefix.value}/${knowledge_id}/knowledge_version`, {}, loading)
+}
+const updateKnowledgeVersion: (
+  knowledge_id: string,
+  knowledge_version_id: string,
+  data: any,
+  loading?: Ref<boolean>,
+) => Promise<Result<any>> = (knowledge_id: string, knowledge_version_id, data, loading) => {
+  return put(
+    `${prefix.value}/${knowledge_id}/knowledge_version/${knowledge_version_id}`,
+    data,
+    {},
+    loading,
+  )
+}
+const getWorkflowActionPage: (
+  knowledge_id: string,
+  page: pageRequest,
+  query: any,
+  loading?: Ref<boolean>,
+) => Promise<Result<any>> = (knowledge_id: string, page, query, loading) => {
+  return get(
+    `${prefix.value}/${knowledge_id}/action/${page.current_page}/${page.page_size}`,
+    query,
+    loading,
+  )
 }
 const getWorkflowAction: (
   knowledge_id: string,
@@ -382,7 +444,6 @@ const getMcpTools: (
 ) => Promise<Result<any>> = (knowledge_id, mcp_servers, loading) => {
   return post(`${prefix.value}/${knowledge_id}/mcp_tools`, { mcp_servers }, {}, loading)
 }
-
 
 export default {
   getKnowledgeList,
@@ -413,4 +474,10 @@ export default {
   getWorkflowAction,
   getKnowledgeWorkflowDatasourceDetails,
   getMcpTools,
+  listKnowledgeVersion,
+  updateKnowledgeVersion,
+  publish,
+  putKnowledgeWorkflow,
+  workflowUpload,
+  getWorkflowActionPage,
 }

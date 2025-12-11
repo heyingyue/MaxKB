@@ -47,6 +47,7 @@ export default {
   classify: 'Classify',
   reason: 'Reason',
   removeSuccess: 'Successful',
+  publish: 'Publish',
   searchBar: {
     placeholder: 'Search by name',
   },
@@ -60,6 +61,7 @@ export default {
     existingExtensionsTip: 'The following extensions already exist',
     localUpload: 'Local Files',
     urlUpload: 'URL',
+    uploadMethodTip: 'Please select upload method',
   },
   status: {
     label: 'Status',
@@ -70,6 +72,10 @@ export default {
     disableSuccess: 'Successful',
     published: 'Published',
     unpublished: 'Unpublished',
+    success: 'Successful',
+    fail: 'Failed',
+    all: 'All',
+    padding: 'Padding',
   },
   param: {
     outputParam: 'Output Parameters',
@@ -123,4 +129,14 @@ export default {
     placeholder: 'Please enter prompt',
   },
   variable: 'Variable',
+  allCheck: 'Select All',
+  type: 'Type',
+  pages: {
+    prev: 'Previous',
+    next: 'Next',
+  },
+  steps: {
+    prev: 'Previous',
+    next: 'Next',
+  },
 }

@@ -22,9 +22,11 @@ export default {
     nameMessage: '文件名称不能为空！',
     importMessage: '导入成功',
     migrationSuccess: '迁移成功',
+    replaceSuccess: '替换成功',
     fileLimitCountTip1: '每次最多上传',
     fileLimitCountTip2: '个文件',
     fileLimitSizeTip1: '每个文件不超过',
+    toImportDocConfirm: '当前知识库的工作流未发布，无法导入文档，请先发布工作流。',
   },
   upload: {
     selectFile: '选择文件',
@@ -87,10 +89,9 @@ export default {
     },
   },
   buttons: {
-    prev: '上一步',
-    next: '下一步',
     import: '开始导入',
     preview: '生成预览',
+    continueImporting: '继续导入文档',
   },
   tag: {
     label: '标签管理',
@@ -113,13 +114,10 @@ export default {
     name: '文件名称',
     char_length: '字符数',
     paragraph: '分段',
-    all: '全部',
     updateTime: '更新时间',
   },
   fileStatus: {
     label: '文件状态',
-    SUCCESS: '成功',
-    FAILURE: '失败',
     EMBEDDING: '索引中',
     PENDING: '排队中',
     GENERATE: '生成中',
@@ -192,9 +190,8 @@ export default {
   },
   feishu: {
     selectDocument: '选择文档',
-    tip1: '支持文档和表格类型，包含TXT、Markdown、PDF、DOCX、HTML、XLS、XLSX、CSV、ZIP格式；',
+    tip1: '支持文档和表格类型，包含 TXT、Markdown、PDF、DOCX、HTML、XLS、XLSX、CSV、ZIP 格式；',
     tip2: '导入文档前，建议规范文档的分段标识。',
-    allCheck: '全选',
     errorMessage1: '请选择文档',
   },
 }

@@ -77,26 +77,35 @@ export default {
     needConnect1: '節點的',
     needConnect2: '分支需要連接',
     cannotEndNode: '節點不能當做結束節點',
-    loopNodeBreakNodeRequired: '無限循環必須存在Break節點',
+    loopNodeBreakNodeRequired: '無限循環必須存在 Break 節點',
   },
   nodes: {
     knowledgeWriteNode: {
-      chunk_length: '子分塊長度',
-      text: '知識庫寫入',
       label: '知識庫寫入',
+      text: '將輸入的分段列表寫入當前知識庫，並完成向量化處理',
     },
     dataSourceWebNode: {
-      label: 'Web網站',
-      text: 'Web網站',
+      label: 'Web 網站',
+      text: '輸入根地址自動抓取Web數據（單鏈接對應單文檔），輸出含內容的文檔列表',
       field_label: '文件列表',
     },
     dataSourceLocalNode: {
       label: '本地文件',
-      text: '本地文件',
+      text: '上傳本地文件，輸出文件列表（不解析內容，需配合 “文檔內容提取” 節點解析）',
       fileList: '文件列表',
+      fileFormat: {
+        label: '支持的文件格式',
+        requiredMessage: '請選擇文件格式',
+      },
+      maxFileNumber: {
+        label: '每次上傳最大文件數',
+      },
+      maxFileCountNumber: {
+        label: '上傳的每個文檔最大(MB)',
+      },
     },
     classify: {
-      aiCapability: 'AI能力',
+      aiCapability: 'AI 能力',
       businessLogic: '業務邏輯',
       other: '其他',
       dataProcessing: '數據處理',
@@ -128,8 +137,12 @@ export default {
           imageText: '需要使用「圖片理解」節點解析圖片內容',
           videoText: '需要使用「視頻理解」節點解析視頻內容',
           audioText: '需要使用「語音轉文本」節點解析音頻內容',
+          uploadMethod: '上傳方式',
         },
       },
+    },
+    KnowledgeBaseNode: {
+      DocumentSetting: '文檔處理設置',
     },
     aiChatNode: {
       label: 'AI 對話',
@@ -228,7 +241,7 @@ export default {
         requiredMessage: '請選擇重排內容',
       },
       higher: '高於',
-      ScoreTooltip: 'Score越高相關性越強。',
+      ScoreTooltip: 'Score 越高相關性越強。',
       max_paragraph_char_number: '最大引用字符數',
       reranker_model: {
         label: '重排模型',
@@ -251,17 +264,40 @@ export default {
     },
     documentExtractNode: {
       label: '文檔內容提取',
-      text: '提取文檔中的內容',
+      text: '解析輸入文檔，輸出結構化文檔內容',
       content: '文檔內容',
     },
     documentSplitNode: {
       label: '文檔拆分',
-      text: '將文檔內容拆分為多個分段',
+      text: '按分段策略拆分輸入文檔內容，輸出分段文本列表',
       paragraphList: '分段列表',
       splitStrategy: {
         label: '分段策略',
         placeholder: '請選擇分段策略',
         requiredMessage: '請選擇分段策略',
+      },
+      chunk_length: {
+        label: '子分塊長度',
+        tooltip1: '核心目標是平衡檢索精度與召回效率',
+        tooltip2:
+          '避免過短拆分：單塊＜50 字易導致語義碎片化，檢索時可能因缺少上下文無法匹配查詢意圖',
+        tooltip3:
+          '避免過長拆分：單塊＞500 字會增加冗餘信息，降低檢索精准度，且佔用更多存儲和計算資源',
+      },
+      title1: '分段標題設置為分段的關聯問題',
+      title2: '文檔名稱設置為分段的關聯問題',
+    },
+    videoUnderstandNode: {
+      label: '视频理解',
+      text: '识别出视频中的对象、场景等信息回答用户问题',
+      answer: 'AI 回答内容',
+      model: {
+        label: '视觉模型',
+        requiredMessage: '请选择视觉模型',
+      },
+      image: {
+        label: '选择视频',
+        requiredMessage: '请选择视频',
       },
     },
     imageUnderstandNode: {
@@ -297,13 +333,13 @@ export default {
     },
     mcpNode: {
       label: 'MCP 調用',
-      text: '通過SSE/Streamable HTTP方式執行MCP服務中的工具',
+      text: '通過 SSE/Streamable HTTP 方式執行 MCP 服務中的工具',
       getToolsSuccess: '獲取工具成功',
       getTool: '獲取工具',
       toolParam: '工具參數',
-      mcpServerTip: '請輸入JSON格式的MCP服務器配置',
+      mcpServerTip: '請輸入 JSON 格式的 MCP 服務器配置',
       mcpToolTip: '請選擇工具',
-      configLabel: 'MCP Server Config (僅支持SSE/Streamable HTTP調用方式)',
+      configLabel: 'MCP Server Config (僅支持SSE/Streamable HTTP 調用方式)',
       reference: '引用MCP',
     },
     imageGenerateNode: {
@@ -401,7 +437,6 @@ export default {
       placeholder: '請選擇分類項',
       classify: {
         label: '意圖分類',
-        placeholder: '請輸入',
       },
       input: {
         label: '輸入',
@@ -456,7 +491,7 @@ export default {
       expression: {
         label: '表達式',
         placeholder: '請輸入表達式',
-        tooltip: '請使用JSON Path 表達式拆分變量，例如：$.store.book',
+        tooltip: '請使用 JSON Path 表達式拆分變量，例如：$.store.book',
       },
     },
     parameterExtractionNode: {
@@ -487,9 +522,7 @@ export default {
   },
   SystemPromptPlaceholder: '系統提示詞，可以引用系統中的變量：如',
   UserPromptPlaceholder: '用戶提示詞，可以引用系統中的變量：如',
-  debug: {
-    executionResult: '執行結果',
-    executionSuccess: '執行成功',
-    executionFailed: '執行失敗',
-  },
+  ExecutionRecord: '執行記錄',
+  initiator: '發起人',
+  debug: {},
 }

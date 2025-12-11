@@ -13,11 +13,11 @@
   </el-avatar>
   <el-avatar
     v-else-if="type == 4"
-    class="avatar-purple"
+    class="avatar-orange"
     shape="square"
     :size="size"
   >
-    <img src="@/assets/knowledge/logo_workflow.svg" style="width: 100%" alt="" />
+    <img src="@/assets/knowledge/logo_workflow.svg" style="width: 60%" alt="" />
   </el-avatar>
   <el-avatar v-else class="avatar-blue" shape="square" :size="size">
     <img src="@/assets/knowledge/icon_document.svg" style="width: 58%" alt="" />

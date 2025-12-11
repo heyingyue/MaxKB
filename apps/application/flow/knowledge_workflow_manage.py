@@ -6,6 +6,7 @@
     @date：2025/11/13 19:02
     @desc:
 """
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 
@@ -43,6 +44,7 @@ class KnowledgeWorkflowManage(WorkflowManage):
         return start_node_list[0]
 
     def run(self):
+        self.context['start_time'] = time.time()
         executor.submit(self._run)
 
     def _run(self):
@@ -93,9 +95,7 @@ class KnowledgeWorkflowManage(WorkflowManage):
             self.status = 500
             current_node.get_write_error_context(e)
             self.answer += str(e)
-            QuerySet(KnowledgeAction).filter(id=self.params.get('knowledge_action_id')).update(
-                details=self.get_runtime_details(),
-                state=State.FAILURE)
+            QuerySet(KnowledgeAction).filter(id=self.params.get('knowledge_action_id')).update(state=State.FAILURE)
         finally:
             current_node.node_chunk.end()
             QuerySet(KnowledgeAction).filter(id=self.params.get('knowledge_action_id')).update(

@@ -26,11 +26,11 @@ export default {
       'The Community Edition supports up to 5 APP. If you need more APP, please upgrade to the Professional Edition.',
     saveErrorMessage: 'Saving failed, please check your input or try again later',
     loadingErrorMessage: 'Failed to load configuration, please check your input or try again later',
+    noDocPermission: 'No permission to create documents',
   },
 
   form: {
     appName: {
-      label: 'Name',
       placeholder: 'Please enter the APP name',
       requiredMessage: 'APP name is required',
     },
@@ -39,7 +39,6 @@ export default {
         'Describe the APP scenario and use, e.g.: XXX assistant answering user questions about XXX product usage',
     },
     appType: {
-      label: 'Type',
       simplePlaceholder: 'Suitable for beginners to create assistant.',
       workflowPlaceholder: 'Suitable for advanced users to customize the workflow of assistant',
     },

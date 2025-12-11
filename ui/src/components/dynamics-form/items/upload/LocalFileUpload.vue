@@ -1,6 +1,7 @@
 <template>
   <div v-loading="loading" class="w-full">
     <el-upload
+      ref="UploadRef"
       :webkitdirectory="false"
       class="w-full"
       drag
@@ -10,7 +11,7 @@
       :auto-upload="false"
       :show-file-list="false"
       :accept="accept"
-      :limit="attrs.limit"
+      :limit="file_count_limit"
       :on-exceed="onExceed"
       :on-change="fileHandleChange"
       @click.prevent="handlePreview(false)"
@@ -39,16 +40,12 @@
     <el-row :gutter="8" v-if="modelValue?.length" class="mt-16">
       <template v-for="(item, index) in modelValue" :key="index">
         <el-col :span="12" class="mb-8">
-          <el-card
-            shadow="never"
-            class="file-List-card"
-            style="--el-card-padding: 8px 12px; line-height: normal"
-          >
+          <el-card shadow="never" style="--el-card-padding: 8px 12px; line-height: normal">
             <div class="flex-between">
               <div class="flex">
                 <img :src="getImgUrl(item && item?.name)" alt="" width="40" />
                 <div class="ml-8">
-                  <p>{{ item && item?.name }}</p>
+                  <p class="ellipsis-1" :title="item && item?.name">{{ item && item?.name }}</p>
                   <el-text type="info" size="small">{{
                     filesize(item && item?.size) || '0K'
                   }}</el-text>
@@ -69,7 +66,7 @@ import { computed, useAttrs, nextTick, inject, ref } from 'vue'
 import type { FormField } from '@/components/dynamics-form/type'
 import { MsgError } from '@/utils/message'
 import type { UploadFiles } from 'element-plus'
-import { filesize, getImgUrl } from '@/utils/common'
+import { filesize, getImgUrl, fileType } from '@/utils/common'
 import { t } from '@/locales'
 const upload = inject('upload') as any
 const attrs = useAttrs() as any
@@ -79,13 +76,14 @@ const props = withDefaults(defineProps<{ modelValue?: any; formField: FormField 
 const onExceed = () => {
   MsgError(
     t('views.document.tip.fileLimitCountTip1') +
-      attrs.limit +
+      file_count_limit.value +
       t('views.document.tip.fileLimitCountTip2'),
   )
 }
 const emit = defineEmits(['update:modelValue'])
 const fileArray = ref<any>([])
 const loading = ref<boolean>(false)
+const UploadRef = ref()
 // 上传on-change事件
 const fileHandleChange = (file: any, fileList: UploadFiles) => {
   //1、判断文件大小是否合法，文件限制不能大于100M
@@ -93,6 +91,13 @@ const fileHandleChange = (file: any, fileList: UploadFiles) => {
   if (!isLimit) {
     MsgError(t('views.document.tip.fileLimitSizeTip1') + file_size_limit.value + 'MB')
     fileList.splice(-1, 1) //移除当前超出大小的文件
+    return false
+  }
+  if (!file_type_list.value.includes(fileType(file.name).toLocaleUpperCase())) {
+    if (file?.name !== '.DS_Store') {
+      MsgError(t('views.document.upload.errorMessage2'))
+    }
+    fileList.splice(-1, 1)
     return false
   }
 
@@ -109,10 +114,7 @@ const fileHandleChange = (file: any, fileList: UploadFiles) => {
   })
 }
 function deleteFile(index: number) {
-  emit(
-    'update:modelValue',
-    props.modelValue.filter((item: any, i: number) => index != i),
-  )
+  props.modelValue.splice(index, 1)
 }
 
 const handlePreview = (bool: boolean) => {
@@ -127,9 +129,11 @@ const handlePreview = (bool: boolean) => {
 const accept = computed(() => {
   return (attrs.file_type_list || []).map((item: any) => '.' + item.toLowerCase()).join(',')
 })
-
+const file_type_list = computed(() => {
+  return attrs.file_type_list.map((item: any) => item.toUpperCase()) || []
+})
 const formats = computed(() => {
-  return (attrs.file_type_list || []).map((item: any) => item.toUpperCase()).join('、')
+  return file_type_list.value.join('、')
 })
 const file_size_limit = computed(() => {
   return attrs.file_size_limit || 50

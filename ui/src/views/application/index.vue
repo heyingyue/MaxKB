@@ -155,33 +155,6 @@
         >
           <el-row v-if="applicationList.length > 0" :gutter="15" class="w-full">
             <template v-for="(item, index) in applicationList" :key="index">
-              <!-- <el-col
-                v-if="item.resource_type === 'folder'"
-                :xs="24"
-                :sm="12"
-                :md="12"
-                :lg="8"
-                :xl="6"
-                class="mb-16"
-              >
-                <CardBox
-                  :title="item.name"
-                  :description="item.desc || $t('components.noDesc')"
-                  class="cursor"
-                  @click="clickFolder(item)"
-                >
-                  <template #icon>
-                    <el-avatar shape="square" :size="32" style="background: none">
-                      <AppIcon iconName="app-folder" style="font-size: 32px"></AppIcon>
-                    </el-avatar>
-                  </template>
-                  <template #subTitle>
-                    <el-text class="color-secondary lighter" size="small">
-                      {{ $t('common.creator') }}: {{ i18n_name(item.nick_name) }}
-                    </el-text>
-                  </template>
-                </CardBox>
-              </el-col> -->
               <el-col :xs="24" :sm="12" :md="12" :lg="8" :xl="6" class="mb-16">
                 <CardBox
                   :title="item.name"
@@ -563,7 +536,8 @@ function toChat(row: any) {
     aips = aips ? aips : []
     const apiParams = mapToUrlParams(aips) ? '?' + mapToUrlParams(aips) : ''
     ApplicationApi.getAccessToken(row.id, loading).then((res: any) => {
-      window.open(application.location + res?.data?.access_token + apiParams)
+      const newUrl = application.location + res?.data?.access_token + apiParams
+      window.open(newUrl)
     })
   })
 }
@@ -594,7 +568,10 @@ function settingApplication(event: any, row: any) {
     if (event?.ctrlKey) {
       event?.preventDefault()
       event.stopPropagation()
-      window.open(`/application/workspace/${row.id}/workflow`, '_blank')
+      const newUrl = router.resolve({
+        path: `/application/workspace/${row.id}/workflow`,
+      }).href
+      window.open(newUrl)
     } else {
       router.push({ path: `/application/workspace/${row.id}/workflow` })
     }
@@ -669,14 +646,16 @@ function openCreateFolder() {
 
 function getFolder(bool?: boolean) {
   const params = {}
-  folder.asyncGetFolder(SourceTypeEnum.APPLICATION, params, loading).then((res: any) => {
-    folderList.value = res.data
-    if (bool) {
-      // 初始化刷新
-      folder.setCurrentFolder(res.data?.[0] || {})
-    }
-    getList()
-  })
+  folder
+    .asyncGetFolder(SourceTypeEnum.APPLICATION, params, apiType.value, loading)
+    .then((res: any) => {
+      folderList.value = res.data
+      if (bool) {
+        // 初始化刷新
+        folder.setCurrentFolder(res.data?.[0] || {})
+      }
+      getList()
+    })
 }
 
 function clickFolder(item: any) {

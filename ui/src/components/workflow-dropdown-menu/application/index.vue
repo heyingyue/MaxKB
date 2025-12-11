@@ -23,7 +23,7 @@
         </el-input>
       </div>
 
-      <el-tab-pane :label="$t('views.workflow.baseComponent')" name="base">
+      <el-tab-pane :label="$t('workflow.baseComponent')" name="base">
         <el-scrollbar height="400">
           <div v-if="filter_menu_nodes.length > 0">
             <template v-for="(node, index) in filter_menu_nodes" :key="index">
@@ -67,7 +67,7 @@
             </template>
           </div>
           <div v-else class="ml-16 mt-8">
-            <el-text type="info">{{ $t('views.workflow.tip.noData') }}</el-text>
+            <el-text type="info">{{ $t('workflow.tip.noData') }}</el-text>
           </div>
         </el-scrollbar>
       </el-tab-pane>
@@ -153,7 +153,9 @@ const props = defineProps({
 const emit = defineEmits(['clickNodes', 'onmousedown'])
 
 const apiType = computed(() => {
-  if (route.path.includes('resource-management')) {
+  if (route.path.includes('shared')) {
+    return 'systemShare'
+  } else if (route.path.includes('resource-management')) {
     return 'systemManage'
   } else {
     return 'workspace'
@@ -247,7 +249,7 @@ const toolTreeData = ref<any[]>([])
 const toolList = ref<any[]>([])
 
 async function getToolFolder() {
-  const res: any = await folder.asyncGetFolder(SourceTypeEnum.TOOL, {}, loading)
+  const res: any = await folder.asyncGetFolder(SourceTypeEnum.TOOL, {source_id: props.id}, apiType.value, loading)
   toolTreeData.value = res.data
   folder.setCurrentFolder(res.data?.[0] || {})
 }
@@ -256,7 +258,7 @@ async function getToolList() {
   const res = await loadSharedApi({
     type: 'tool',
     isShared: folder.currentFolder?.id === 'share',
-    systemType: 'workspace',
+    systemType: apiType.value,
   }).getToolList({
     folder_id: folder.currentFolder?.id || user.getWorkspaceId(),
     tool_type: 'CUSTOM',
@@ -269,7 +271,7 @@ const applicationTreeData = ref<any[]>([])
 const applicationList = ref<any[]>([])
 
 function getApplicationFolder() {
-  folder.asyncGetFolder(SourceTypeEnum.APPLICATION, {}, loading).then((res: any) => {
+  folder.asyncGetFolder(SourceTypeEnum.APPLICATION, {source_id: props.id}, apiType.value, loading).then((res: any) => {
     applicationTreeData.value = res.data
     folder.setCurrentFolder(res.data?.[0] || {})
   })
@@ -278,7 +280,7 @@ function getApplicationFolder() {
 async function getApplicationList() {
   const res = await loadSharedApi({
     type: 'application',
-    systemType: 'workspace',
+    systemType: apiType.value,
   }).getAllApplication({
     folder_id: folder.currentFolder?.id || user.getWorkspaceId(),
   })
@@ -297,7 +299,6 @@ function folderClickHandle(row: any) {
 }
 
 async function handleClick(val: string) {
-  console.log(val)
   if (val === 'tool') {
     await getToolFolder()
     getToolList()
@@ -309,6 +310,4 @@ async function handleClick(val: string) {
 
 onMounted(() => {})
 </script>
-<style lang="scss" scoped>
-
-</style>
+<style lang="scss" scoped></style>

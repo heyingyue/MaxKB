@@ -1,6 +1,6 @@
 <template>
   <NodeContainer :nodeModel="nodeModel">
-    <h5 class="title-decoration-1 mb-8">{{ $t('views.workflow.nodeSetting') }}</h5>
+    <h5 class="title-decoration-1 mb-8">{{ $t('workflow.nodeSetting') }}</h5>
     <el-card shadow="never" class="card-never">
       <el-form
         @submit.prevent
@@ -8,35 +8,27 @@
         label-position="top"
         require-asterisk-position="right"
         label-width="auto"
+        ref="NodeFormRef"
       >
         <el-form-item
-          :label="
-            $t(
-              'views.workflow.nodes.dataSourceLocalNode.fileFormat.label',
-              '支持的文件格式',
-            )
-          "
+          :label="$t('workflow.nodes.dataSourceLocalNode.fileFormat.label')"
           :rules="{
             type: 'array',
             required: true,
-            message: $t(
-              'views.workflow.nodes.dataSourceLocalNode.fileFormat.message',
-              '请选择文件格式',
-            ),
+            message: $t('workflow.nodes.dataSourceLocalNode.fileFormat.requiredMessage'),
             trigger: 'change',
           }"
+          prop="file_type_list"
         >
           <el-select
             v-model="form_data.file_type_list"
-            :placeholder="
-              $t(
-                'views.workflow.nodes.dataSourceLocalNode.fileFormat.placeholder',
-                '请选择文件格式',
-              )
-            "
-            style="width: 240px"
+            :placeholder="$t('workflow.nodes.dataSourceLocalNode.fileFormat.requiredMessage')"
+            class="w-240"
             clearable
             multiple
+            allow-create
+            filterable
+            default-first-option
           >
             <template #label="{ label, value }">
               <span>{{ label }} </span>
@@ -50,42 +42,44 @@
           </el-select>
         </el-form-item>
         <el-form-item
-          :label="
-            $t(
-              'views.workflow.nodes.dataSourceLocalNode.maxFileNumber.label',
-              '每次上传最大文件数',
-            )
-          "
+          :label="$t('workflow.nodes.dataSourceLocalNode.maxFileNumber.label')"
           :rules="{
-            type: 'array',
             required: true,
-            message: $t(
-              'views.workflow.nodes.dataSourceLocalNode.maxFileNumber.placeholder',
-              '请输入最大文件数',
-            ),
+            message: $t('common.inputPlaceholder'),
             trigger: 'change',
           }"
+          prop="file_count_limit"
         >
-          <el-slider v-model="form_data.file_count_limit" show-input />
+          <el-input-number
+            v-model="form_data.file_count_limit"
+            :min="1"
+            :max="1000"
+            :value-on-clear="0"
+            controls-position="right"
+            class="w-full"
+            :step="1"
+            :step-strictly="true"
+          />
         </el-form-item>
         <el-form-item
-          :label="
-            $t(
-              'views.workflow.nodes.dataSourceLocalNode.maxFileNumber.label',
-              '上传的每个文档最大(MB)',
-            )
-          "
+          :label="$t('workflow.nodes.dataSourceLocalNode.maxFileCountNumber.label')"
           :rules="{
-            type: 'array',
             required: true,
-            message: $t(
-              'views.workflow.nodes.dataSourceLocalNode.maxFileNumber.placeholder',
-              '上传的每个文档最大(MB) 必填',
-            ),
+            message: $t('common.inputPlaceholder'),
             trigger: 'change',
           }"
+          prop="file_size_limit"
         >
-          <el-slider v-model="form_data.file_size_limit" show-input />
+          <el-input-number
+            v-model="form_data.file_size_limit"
+            :min="1"
+            :max="1000"
+            :value-on-clear="0"
+            controls-position="right"
+            class="w-full"
+            :step="1"
+            :step-strictly="true"
+          />
         </el-form-item>
       </el-form>
     </el-card>
@@ -94,16 +88,16 @@
 
 <script setup lang="ts">
 import NodeContainer from '@/workflow/common/NodeContainer.vue'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { set } from 'lodash'
-
+const NodeFormRef = ref()
 const props = defineProps<{ nodeModel: any }>()
 
-const file_type_list_options = ['TXT', 'DOCX', 'PDF', 'HTML', 'XLS', 'XLSX', 'ZIP', 'CSV']
+const file_type_list_options = ['TXT', 'DOCX', 'PDF', 'HTML', 'XLS', 'XLSX', 'ZIP', 'CSV', 'MD']
 const form = {
-  file_type_list: [],
-  file_size_limit: 50,
-  file_count_limit: 100,
+  file_type_list: ['TXT', 'DOCX', 'PDF', 'HTML', 'XLS', 'XLSX', 'ZIP', 'CSV', 'MD'],
+  file_size_limit: 100,
+  file_count_limit: 50,
 }
 
 const form_data = computed({
@@ -118,6 +112,13 @@ const form_data = computed({
   set: (value) => {
     set(props.nodeModel.properties, 'node_data', value)
   },
+})
+const validate = () => {
+  return NodeFormRef.value.validate()
+}
+
+onMounted(() => {
+  set(props.nodeModel, 'validate', validate)
 })
 </script>
 

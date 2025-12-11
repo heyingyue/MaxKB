@@ -278,7 +278,6 @@
                               :show-file-list="false"
                               :accept="getAcceptList()"
                               :on-change="(file: any, fileList: any) => uploadFile(file, fileList)"
-                              v-model:file-list="fileAllList"
                               ref="upload"
                             >
                               <el-tooltip
@@ -384,24 +383,24 @@
             }}
           </el-button>
         </div>
-        <el-divider style="margin: 16px 0"/>
-        <el-upload
-          v-if="props.applicationDetails.file_upload_setting.local_upload"
-          action="#"
-          multiple
-          :auto-upload="false"
-          :show-file-list="false"
-          :accept="getAcceptList()"
-          :on-change="(file: any, fileList: any) => uploadFile(file, fileList)"
-          v-model:file-list="fileAllList"
-          ref="upload"
-          class="import-button"
-        >
-          <el-button class="w-full url-upload-button">{{
-              $t('chat.uploadFile.localUpload')
-            }}
-          </el-button>
-        </el-upload>
+        <div v-if="props.applicationDetails.file_upload_setting.local_upload">
+          <el-divider style="margin: 16px 0"/>
+          <el-upload
+            action="#"
+            multiple
+            :auto-upload="false"
+            :show-file-list="false"
+            :accept="getAcceptList()"
+            :on-change="(file: any, fileList: any) => uploadFile(file, fileList)"
+            ref="upload"
+            class="import-button"
+          >
+            <el-button class="w-full url-upload-button">{{
+                $t('chat.uploadFile.localUpload')
+              }}
+            </el-button>
+          </el-upload>
+        </div>
       </el-card>
     </div>
   </div>
@@ -420,7 +419,6 @@ import bus from '@/bus'
 import 'recorder-core/src/engine/mp3'
 import 'recorder-core/src/engine/mp3-engine'
 import chatAPI from '@/api/chat/chat'
-import imageApi from '@/api/image'
 
 const router = useRouter()
 const route = useRoute()
@@ -582,6 +580,7 @@ const uploadFile = async (file: any, fileList: any) => {
     inner.file_id = split_path[split_path.length - 1]
     delete filePromisionDict.value[file.uid]
   })
+  showURLSetting.value = false
 }
 // 粘贴处理
 const handlePaste = (event: ClipboardEvent) => {
@@ -1119,7 +1118,7 @@ const mime_types = {
   "mid": "audio/midi",
   "midi": "audio/midi",
   "kar": "audio/midi",
-  "mp3": "audio/mp3",
+  "mp3": "audio/mpeg",
   "ogg": "audio/ogg",
   "m4a": "audio/x-m4a",
   "ra": "audio/x-realaudio",
@@ -1196,6 +1195,17 @@ async function saveUrl() {
     MsgWarning(t('chat.uploadFile.invalidUrl'))
     return
   }
+  const {maxFiles, fileLimit} = props.applicationDetails.file_upload_setting
+  const file_limit_once =
+    uploadImageList.value.length +
+    uploadDocumentList.value.length +
+    uploadAudioList.value.length +
+    uploadVideoList.value.length +
+    uploadOtherList.value.length
+  if (file_limit_once >= maxFiles || urls.length + file_limit_once >= fileLimit || urls.length > fileLimit) {
+    MsgWarning(t('chat.uploadFile.limitMessage1') + maxFiles + t('chat.uploadFile.limitMessage2'))
+    return
+  }
   // 允许的 MIME 类型
   const allowedTypes: Record<string, string[]> = {
     image: imageExtensions
@@ -1238,8 +1248,12 @@ async function saveUrl() {
   async function processUrl(url: string) {
     try {
       const appId = props.appId || props.applicationDetails?.id;
-      const res = await imageApi.getFile(appId, {url});
-      if (!res.data) {
+      const res =
+        props.type === 'debug-ai-chat'
+          ? await applicationApi.getFile(appId, {url})
+          : await chatAPI.getFile(appId, {url})
+
+      if (res.data['status_code'] !== 200) {
         MsgWarning(url + ' ' + t('chat.uploadFile.invalidUrl'));
         return;
       }
@@ -1254,8 +1268,6 @@ async function saveUrl() {
         return;
       }
 
-      // 大小校验
-      const {fileLimit} = props.applicationDetails.file_upload_setting;
       if (fileSize > fileLimit * 1024 * 1024) {
         MsgWarning(url + ' ' + t('chat.uploadFile.sizeLimit') + fileLimit + 'MB')
         return;
@@ -1304,7 +1316,7 @@ async function saveUrl() {
       }
     } catch (e) {
       console.error(e);
-      MsgWarning(`${url} 无法访问`);
+      return
     }
   }
 

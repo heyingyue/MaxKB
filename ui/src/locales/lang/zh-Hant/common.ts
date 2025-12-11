@@ -47,6 +47,7 @@ export default {
   classify: '分類',
   reason: '理由',
   removeSuccess: '移除成功',
+  publish: '發佈',
   searchBar: {
     placeholder: '按名稱搜尋',
   },
@@ -60,6 +61,7 @@ export default {
     existingExtensionsTip: '文件後綴已存在',
     localUpload: '本地文件',
     urlUpload: 'URL 地址',
+    uploadMethodTip: '請選擇上傳方式',
   },
   status: {
     label: '狀態',
@@ -70,6 +72,10 @@ export default {
     disableSuccess: '停用成功',
     published: '已發佈',
     unpublished: '未發佈',
+    success: '成功',
+    fail: '失敗',
+    all: '全部',
+    padding: '執行中',
   },
   param: {
     outputParam: '輸出參數',
@@ -92,7 +98,7 @@ export default {
     title: '應用頭像',
     customizeUpload: '自訂上傳',
     upload: '上傳',
-    default: '預設logo',
+    default: '預設 logo',
     sizeTip: '建議尺寸 32*32，支援 JPG、PNG、GIF，大小不超過 10 MB',
     fileSizeExceeded: '檔案大小超過 10 MB',
     uploadImagePrompt: '請上傳一張圖片',
@@ -122,4 +128,14 @@ export default {
     placeholder: '請輸入提示詞',
   },
   variable: '變量',
+  allCheck: '全選',
+  type: '類型',
+  pages: {
+    prev: '上一條',
+    next: '下一條',
+  },
+  steps: {
+    prev: '上一步',
+    next: '下一步',
+  },
 }

@@ -16,7 +16,6 @@
     </div>
   </div>
   <el-table
-    v-if="props.nodeModel.properties.user_input_field_list?.length > 0"
     :data="props.nodeModel.properties.user_input_field_list"
     class="mb-16"
     ref="tableRef"
@@ -119,7 +118,7 @@ const tableRef = ref()
 const UserFieldFormDialogRef = ref()
 const UserInputTitleDialogRef = ref()
 const inputFieldList = ref<any[]>([])
-const inputFieldConfig = ref({ title: t('chat.userInput') })
+const inputFieldConfig = ref({ title: t('workflow.nodes.KnowledgeBaseNode.DocumentSetting') })
 
 function openAddDialog(data?: any, index?: any) {
   UserFieldFormDialogRef.value.open(data, index)
@@ -145,7 +144,7 @@ function deleteField(index: any) {
 function refreshFieldList(data: any, index: any) {
   for (let i = 0; i < inputFieldList.value.length; i++) {
     if (inputFieldList.value[i].field === data.field && index !== i) {
-      MsgError(t('views.workflow.tip.paramErrorMessage') + data.field)
+      MsgError(t('workflow.tip.paramErrorMessage') + data.field)
       return
     }
   }
@@ -210,7 +209,10 @@ onMounted(() => {
   if (props.nodeModel.properties.user_input_field_list) {
     inputFieldList.value = cloneDeep(props.nodeModel.properties.user_input_field_list)
   }
-
+  if (props.nodeModel.properties.user_input_config) {
+    inputFieldConfig.value = props.nodeModel.properties.user_input_config
+  }
+  set(props.nodeModel.properties, 'user_input_config', inputFieldConfig)
   onDragHandle()
 })
 </script>

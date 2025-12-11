@@ -1,6 +1,6 @@
 <template>
   <div class="workflow-publish-history border-l white-bg">
-    <h4 class="border-b p-16-24">{{ $t('views.workflow.setting.releaseHistory') }}</h4>
+    <h4 class="border-b p-16-24">{{ $t('workflow.setting.releaseHistory') }}</h4>
     <div class="list-height pt-0">
       <el-scrollbar>
         <div class="p-8 pt-0">
@@ -24,12 +24,15 @@
                       @close="closeWrite(row)"
                     />
                     <el-tag v-if="index === 0" class="default-tag ml-4">{{
-                      $t('views.workflow.setting.latestRelease')
-                    }}</el-tag>
+                        $t('workflow.setting.latestRelease')
+                      }}
+                    </el-tag>
                   </h5>
                   <el-text type="info" class="color-secondary flex align-center mt-8">
                     <el-avatar :size="20" class="avatar-grey mr-4">
-                      <el-icon><UserFilled /></el-icon>
+                      <el-icon>
+                        <UserFilled/>
+                      </el-icon>
                     </el-avatar>
                     {{ row.publish_user_name }}
                   </el-text>
@@ -42,13 +45,18 @@
                     </el-button>
                     <template #dropdown>
                       <el-dropdown-menu>
-                        <el-dropdown-item @click.stop="openEditVersion(row)">
+                        <el-dropdown-item
+                          v-if="permissionPrecise.workflow_edit(id)"
+                          @click.stop="openEditVersion(row)"
+                        >
                           <AppIcon iconName="app-edit" class="color-secondary"></AppIcon>
                           {{ $t('common.edit') }}
                         </el-dropdown-item>
                         <el-dropdown-item @click="refreshVersion(row)">
-                          <el-icon class="color-secondary"><RefreshLeft /></el-icon>
-                          {{ $t('views.workflow.setting.restoreCurrentVersion') }}
+                          <el-icon class="color-secondary">
+                            <RefreshLeft/>
+                          </el-icon>
+                          {{ $t('workflow.setting.restoreCurrentVersion') }}
                         </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
@@ -69,22 +77,30 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { datetimeFormat } from '@/utils/time'
-import { MsgSuccess, MsgError } from '@/utils/message'
-import { t } from '@/locales'
-import { loadSharedApi } from '@/utils/dynamics-api/shared-api'
+import {ref, onMounted, computed} from 'vue'
+import {useRoute} from 'vue-router'
+import {datetimeFormat} from '@/utils/time'
+import {MsgSuccess, MsgError} from '@/utils/message'
+import {t} from '@/locales'
+import {loadSharedApi} from '@/utils/dynamics-api/shared-api'
+import permissionMap from '@/permission'
+
 const route = useRoute()
 const {
-  params: { id },
+  params: {id, folderId},
 } = route as any
 const apiType = computed(() => {
-  if (route.path.includes('resource-management')) {
+  if (route.path.includes('shared')) {
+    return 'systemShare'
+  } else if (route.path.includes('resource-management')) {
     return 'systemManage'
   } else {
     return 'workspace'
   }
+})
+
+const permissionPrecise = computed(() => {
+  return permissionMap['knowledge'][apiType.value]
 })
 
 const emit = defineEmits(['click', 'refreshVersion'])
@@ -113,26 +129,30 @@ function closeWrite(item: any) {
   item['writeStatus'] = false
 }
 
+const isShared = computed(() => {
+  return folderId === 'share'
+})
+
 function editName(val: string, item: any) {
   if (val) {
     const obj = {
       name: val,
     }
-    loadSharedApi({ type: 'workflowVersion', systemType: apiType.value })
-      .putWorkFlowVersion(id as string, item.id, obj, loading)
+    loadSharedApi({type: 'knowledge', isShared: isShared.value, systemType: apiType.value})
+      .updateKnowledgeVersion(id as string, item.id, obj, loading)
       .then(() => {
         MsgSuccess(t('common.modifySuccess'))
         item['writeStatus'] = false
         getList()
       })
   } else {
-    MsgError(t('views.workflow.tip.nameMessage'))
+    MsgError(t('workflow.tip.nameMessage'))
   }
 }
 
 function getList() {
-  loadSharedApi({ type: 'workflowVersion', systemType: apiType.value })
-    .getWorkFlowVersion(id, loading)
+  loadSharedApi({type: 'knowledge', isShared: isShared.value, systemType: apiType.value})
+    .listKnowledgeVersion(id, loading)
     .then((res: any) => {
       LogData.value = res.data
     })
@@ -150,6 +170,7 @@ onMounted(() => {
   top: 57px;
   height: calc(100vh - 57px);
   z-index: 9;
+
   .list-height {
     height: calc(100vh - 120px);
   }

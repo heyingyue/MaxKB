@@ -85,10 +85,11 @@ export default {
     localUpload: 'Local Upload',
     urlPlaceholder: 'Please enter URL addresses, one per line',
     urlTitle: 'URL Address',
-    urlErrorMessage: 'File type does not meet requirements'
+    urlErrorMessage: 'File type does not meet requirements',
   },
   executionDetails: {
     title: 'Execution Details',
+    createTime: 'Execution Time',
     paramOutputTooltip: 'Each document supports previewing up to 500 characters',
     audioFile: 'Audio File',
     searchContent: 'Search Query',
@@ -106,6 +107,9 @@ export default {
     noSubmit: 'No submission from user',
     errMessage: 'Error Log',
     knowedMessage: 'Known Information',
+    documentSplitTip: 'Each document can preview only the first five segments',
+    paragraphRules: 'Segmentation Rules',
+    writeContent: 'Content Written',
   },
   KnowledgeSource: {
     title: 'Knowledge Source',

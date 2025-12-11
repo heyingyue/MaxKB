@@ -66,13 +66,13 @@ class AppNode extends HtmlResize.view {
     if (this.props.model.type === 'start-node') {
       result.push({
         value: 'global',
-        label: t('views.workflow.variable.global'),
+        label: t('workflow.variable.global'),
         type: 'global',
         children: this.props.model.properties?.config?.globalFields || [],
       })
       result.push({
         value: 'chat',
-        label: t('views.workflow.variable.chat'),
+        label: t('workflow.variable.chat'),
         type: 'chat',
         children: this.props.model.properties?.config?.chatFields || [],
       })
@@ -88,18 +88,22 @@ class AppNode extends HtmlResize.view {
 
       result.push({
         value: 'global',
-        label: t('views.workflow.variable.global'),
+        label: t('workflow.variable.global'),
         type: 'global',
         children: globalFields,
       })
     }
-    result.push({
+    const value: any = {
       value: this.props.model.id,
       icon: this.props.model.properties.node_data?.icon,
       label: this.props.model.properties.stepName,
       type: this.props.model.type,
       children: this.props.model.properties?.config?.fields || [],
-    })
+    }
+    if (this.props.model.properties.kind) {
+      value['kind'] = this.props.model.properties.kind
+    }
+    result.push(value)
     return result
   }
   get_up_node_field_dict(contain_self: boolean, use_cache: boolean) {
@@ -405,13 +409,13 @@ class AppNodeModel extends HtmlResize.model {
       return false
     }
     const circleOnlyAsTarget = {
-      message: t('views.workflow.tip.onlyRight'),
+      message: t('workflow.tip.onlyRight'),
       validate: (sourceNode: any, targetNode: any, sourceAnchor: any) => {
         return sourceAnchor.type === 'right'
       },
     }
     this.sourceRules.push({
-      message: t('views.workflow.tip.notRecyclable'),
+      message: t('workflow.tip.notRecyclable'),
       validate: (sourceNode: any, targetNode: any, sourceAnchor: any, targetAnchor: any) => {
         if (targetNode.id == sourceNode.id) {
           return false
@@ -427,7 +431,7 @@ class AppNodeModel extends HtmlResize.model {
 
     this.sourceRules.push(circleOnlyAsTarget)
     this.targetRules.push({
-      message: t('views.workflow.tip.onlyLeft'),
+      message: t('workflow.tip.onlyLeft'),
       validate: (sourceNode: any, targetNode: any, sourceAnchor: any, targetAnchor: any) => {
         return targetAnchor.type === 'left'
       },

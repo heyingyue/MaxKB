@@ -56,7 +56,8 @@ function initChart() {
       text: props.option?.title,
       textStyle: {
         fontSize: '16px',
-      },
+        color: '#1f2329',
+      }
     },
     tooltip: {
       trigger: 'axis',
@@ -94,6 +95,16 @@ function initChart() {
         },
       },
     },
+    dataZoom: [
+      {
+        type: 'inside',
+        show: props.option.dataZoom,
+      },
+      {
+        type: 'slider',
+        show: props.option.dataZoom,
+      },
+    ],
     series: series,
   }
 
@@ -117,6 +128,7 @@ watch(
 )
 
 onMounted(() => {
+  console.log(props.option.dataZoom)
   nextTick(() => {
     initChart()
     window.addEventListener('resize', changeChartSize)

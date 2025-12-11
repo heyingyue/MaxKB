@@ -6,17 +6,17 @@
         <h4 class="ellipsis" style="max-width: 300px" :title="detail?.name">{{ detail?.name }}</h4>
         <div v-if="showHistory && disablePublic">
           <el-text type="info" class="ml-16 color-secondary"
-            >{{ $t('views.workflow.info.previewVersion') }}
-            {{ currentVersion.name || datetimeFormat(currentVersion.update_time) }}</el-text
-          >
+            >{{ $t('workflow.info.previewVersion') }}
+            {{ currentVersion.name || datetimeFormat(currentVersion.update_time) }}
+          </el-text>
         </div>
         <el-text type="info" class="ml-16 color-secondary" v-else-if="saveTime"
-          >{{ $t('views.workflow.info.saveTime') }}{{ datetimeFormat(saveTime) }}</el-text
-        >
+          >{{ $t('workflow.info.saveTime') }}{{ datetimeFormat(saveTime) }}
+        </el-text>
       </div>
-      <div v-if="showHistory && disablePublic">
+      <div v-if="showHistory && disablePublic && !route.path.includes('share/')">
         <el-button type="primary" class="mr-8" @click="refreshVersion()">
-          {{ $t('views.workflow.setting.restoreVersion') }}
+          {{ $t('workflow.setting.restoreVersion') }}
         </el-button>
         <el-divider direction="vertical" />
         <el-button text @click="closeHistory">
@@ -25,20 +25,20 @@
           </el-icon>
         </el-button>
       </div>
-      <div v-else>
+      <div v-else-if="!route.path.includes('share/')">
         <el-button @click="showPopover = !showPopover">
           <AppIcon iconName="app-add-outlined" class="mr-4" />
-          {{ $t('views.workflow.setting.addComponent') }}
+          {{ $t('workflow.setting.addComponent') }}
         </el-button>
         <el-button @click="clickShowDebug" :disabled="showDebug" v-if="permissionPrecise.debug(id)">
           <AppIcon iconName="app-debug-outlined" class="mr-4"></AppIcon>
           {{ $t('common.debug') }}
         </el-button>
-        <el-button @click="saveknowledge(true)">
+        <el-button v-if="permissionPrecise.workflow_edit(id)" @click="saveknowledge(true)">
           <AppIcon iconName="app-save-outlined" class="mr-4"></AppIcon>
           {{ $t('common.save') }}
         </el-button>
-        <el-button type="primary" @click="publish">
+        <el-button type="primary" v-if="permissionPrecise.workflow_edit(id)" @click="publish">
           {{ $t('common.publish') }}
         </el-button>
 
@@ -48,20 +48,21 @@
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <a :href="shareUrl" target="_blank">
-                <el-dropdown-item>
-                  <AppIcon iconName="app-create-chat" class="color-secondary"></AppIcon>
-                  {{ $t('views.workflow.operation.toImportDoc') }}
-                </el-dropdown-item>
-              </a>
-
+              <el-dropdown-item @click="toImportDoc">
+                <AppIcon iconName="app-to-import-doc" class="color-secondary"></AppIcon>
+                {{ $t('workflow.operation.toImportDoc') }}
+              </el-dropdown-item>
+              <el-dropdown-item @click="openListAction" divided>
+                <AppIcon iconName="app-execution-record" class="color-secondary"></AppIcon>
+                {{ $t('workflow.ExecutionRecord') }}
+              </el-dropdown-item>
               <el-dropdown-item @click="openHistory">
                 <AppIcon iconName="app-history-outlined" class="color-secondary"></AppIcon>
-                {{ $t('views.workflow.setting.releaseHistory') }}
+                {{ $t('workflow.setting.releaseHistory') }}
               </el-dropdown-item>
-              <el-dropdown-item>
+              <el-dropdown-item v-if="permissionPrecise.workflow_edit(id)">
                 <AppIcon iconName="app-save-outlined" class="color-secondary"></AppIcon>
-                {{ $t('views.workflow.setting.autoSave') }}
+                {{ $t('workflow.setting.autoSave') }}
                 <div class="ml-4">
                   <el-switch size="small" v-model="isSave" @change="changeSave" />
                 </div>
@@ -128,6 +129,7 @@
       </div>
     </el-collapse-transition>
     <DebugVue ref="DebugRef"></DebugVue>
+    <ExecutionRecord ref="ListActionRef"></ExecutionRecord>
     <!-- 发布历史 -->
     <PublishHistory
       v-if="showHistory"
@@ -143,6 +145,7 @@ import { useRouter, useRoute } from 'vue-router'
 import type { Action } from 'element-plus'
 import Workflow from '@/workflow/index.vue'
 import DropdownMenu from '@/components/workflow-dropdown-menu/index.vue'
+import ExecutionRecord from '@/views/knowledge-workflow/component/execution-record/ExecutionRecordDrawer.vue'
 import PublishHistory from '@/views/knowledge-workflow/component/PublishHistory.vue'
 import { isAppIcon, resetUrl } from '@/utils/common'
 import { MsgSuccess, MsgError, MsgConfirm } from '@/utils/message'
@@ -153,7 +156,7 @@ import { KnowledgeWorkFlowInstance } from '@/workflow/common/validate'
 import { hasPermission } from '@/utils/permission'
 import DebugVue from './component/DebugDrawer.vue'
 import { t } from '@/locales'
-import { ComplexPermission } from '@/utils/permission/type'
+import { ComplexPermission, Permission } from '@/utils/permission/type'
 import { EditionConst, PermissionConst, RoleConst } from '@/utils/permission/data'
 import permissionMap from '@/permission'
 import { WorkflowMode } from '@/enums/application'
@@ -166,7 +169,10 @@ const { theme } = useStore()
 const router = useRouter()
 const route = useRoute()
 const {
-  params: { id, from, folderId },
+  params: { id, folderId },
+  /*
+  folderId 可以区分 resource-management shared还是 workspace
+  */
 } = route as any
 const apiType = computed(() => {
   if (route.path.includes('shared')) {
@@ -188,10 +194,9 @@ const isDefaultTheme = computed(() => {
   return theme.isDefaultTheme()
 })
 const DebugRef = ref<InstanceType<typeof DebugVue>>()
-
+const ListActionRef = ref<InstanceType<typeof ExecutionRecord>>()
 let interval: any
 const workflowRef = ref()
-const workflowMainRef = ref()
 const loading = ref(false)
 const detail = ref<any>(null)
 
@@ -207,18 +212,13 @@ const cloneWorkFlow = ref(null)
 
 const apiInputParams = ref([])
 
-const urlParams = computed(() =>
-  mapToUrlParams(apiInputParams.value) ? '?' + mapToUrlParams(apiInputParams.value) : '',
-)
-const shareUrl = computed(
-  () => `${window.location.origin}/chat/` + detail.value?.access_token + urlParams.value,
-)
+const isPublish = computed(() => detail.value?.is_publish)
 
 function back() {
   if (JSON.stringify(cloneWorkFlow.value) !== JSON.stringify(getGraphData())) {
-    MsgConfirm(t('common.tip'), t('views.workflow.tip.saveMessage'), {
-      confirmButtonText: t('views.workflow.setting.exitSave'),
-      cancelButtonText: t('views.workflow.setting.exit'),
+    MsgConfirm(t('common.tip'), t('workflow.tip.saveMessage'), {
+      confirmButtonText: t('workflow.setting.exitSave'),
+      cancelButtonText: t('workflow.setting.exit'),
       distinguishCancelAndClose: true,
     })
       .then(() => {
@@ -233,6 +233,11 @@ function back() {
     go()
   }
 }
+
+const openListAction = () => {
+  ListActionRef.value?.open(id)
+}
+
 function clickoutsideHistory() {
   if (!disablePublic.value) {
     showHistory.value = false
@@ -300,6 +305,7 @@ function onmousedown(item: any) {
 function clickoutside() {
   showPopover.value = false
 }
+
 const publish = () => {
   workflowRef.value
     ?.validate()
@@ -312,39 +318,18 @@ const publish = () => {
         MsgError(e.toString())
         return
       }
-      loadSharedApi({ type: 'knowledge', systemType: apiType.value })
-        .putknowledge(id, { work_flow: workflow }, loading)
+      loadSharedApi({ type: 'knowledge', isShared: isShared.value, systemType: apiType.value })
+        .putKnowledgeWorkflow(id, { work_flow: workflow })
         .then(() => {
-          return loadSharedApi({ type: 'knowledge', systemType: apiType.value }).publish(
-            id,
-            {},
-            loading,
-          )
+          return loadSharedApi({
+            type: 'knowledge',
+            isShared: isShared.value,
+            systemType: apiType.value,
+          }).publish(id, {}, loading)
         })
         .then((ok: any) => {
-          detail.value.name = ok.data.name
-          ok.data.work_flow?.nodes
-            ?.filter((v: any) => v.id === 'base-node')
-            .map((v: any) => {
-              apiInputParams.value = v.properties.api_input_field_list
-                ? v.properties.api_input_field_list.map((v: any) => {
-                    return {
-                      name: v.variable,
-                      value: v.default_value,
-                    }
-                  })
-                : v.properties.input_field_list
-                  ? v.properties.input_field_list
-                      .filter((v: any) => v.assignment_method === 'api_input')
-                      .map((v: any) => {
-                        return {
-                          name: v.variable,
-                          value: v.default_value,
-                        }
-                      })
-                  : []
-            })
-          MsgSuccess(t('views.knowledge.tip.publishSuccess'))
+          detail.value.is_publish = true
+          MsgSuccess(t('views.application.tip.publishSuccess'))
         })
         .catch((res: any) => {
           const node = res.node
@@ -352,14 +337,14 @@ const publish = () => {
           if (typeof err_message == 'string') {
             MsgError(
               res.node.properties?.stepName +
-                ` ${t('views.workflow.node').toLowerCase()} ` +
+                ` ${t('workflow.node').toLowerCase()} ` +
                 err_message.toLowerCase(),
             )
           } else {
             const keys = Object.keys(err_message)
             MsgError(
               node.properties?.stepName +
-                ` ${t('views.workflow.node').toLowerCase()} ` +
+                ` ${t('workflow.node').toLowerCase()} ` +
                 err_message[keys[0]]?.[0]?.message.toLowerCase(),
             )
           }
@@ -369,12 +354,12 @@ const publish = () => {
       const node = res.node
       const err_message = res.errMessage
       if (typeof err_message == 'string') {
-        MsgError(res.node.properties?.stepName + ` ${t('views.workflow.node')}，` + err_message)
+        MsgError(res.node.properties?.stepName + ` ${t('workflow.node')}，` + err_message)
       } else {
         const keys = Object.keys(err_message)
         MsgError(
           node.properties?.stepName +
-            ` ${t('views.workflow.node')}，` +
+            ` ${t('workflow.node')}，` +
             err_message[keys[0]]?.[0]?.message,
         )
       }
@@ -395,7 +380,7 @@ const clickShowDebug = () => {
           ...workflow.get_base_node()?.properties.node_data,
           work_flow: getGraphData(),
         }
-        DebugRef.value?.open(graphData, id)
+        DebugRef.value?.open(graphData)
       } catch (e: any) {
         MsgError(e.toString())
       }
@@ -404,23 +389,28 @@ const clickShowDebug = () => {
       const node = res.node
       const err_message = res.errMessage
       if (typeof err_message == 'string') {
-        MsgError(res.node.properties?.stepName + ` ${t('views.workflow.node')}，` + err_message)
+        MsgError(res.node.properties?.stepName + ` ${t('workflow.node')}，` + err_message)
       } else {
         const keys = Object.keys(err_message)
         MsgError(
           node.properties?.stepName +
-            ` ${t('views.workflow.node')}，` +
+            ` ${t('workflow.node')}，` +
             err_message[keys[0]]?.[0]?.message,
         )
       }
     })
 }
+
 function getGraphData() {
   return workflowRef.value?.getGraphData()
 }
 
+const isShared = computed(() => {
+  return folderId === 'share'
+})
+
 function getDetail() {
-  loadSharedApi({ type: 'knowledge', systemType: apiType.value })
+  loadSharedApi({ type: 'knowledge', isShared: isShared.value, systemType: apiType.value })
     .getKnowledgeDetail(id)
     .then((res: any) => {
       detail.value = res.data
@@ -458,14 +448,6 @@ function getDetail() {
         workflowRef.value?.render(detail.value.work_flow)
         cloneWorkFlow.value = getGraphData()
       })
-      // 企业版和专业版
-      if (hasPermission([EditionConst.IS_EE, EditionConst.IS_PE], 'OR')) {
-        loadSharedApi({ type: 'knowledge', systemType: apiType.value })
-          .getknowledgeSetting(id)
-          .then((ok: any) => {
-            detail.value = { ...detail.value, ...ok.data }
-          })
-      }
     })
 }
 
@@ -474,8 +456,8 @@ function saveknowledge(bool?: boolean, back?: boolean) {
     work_flow: getGraphData(),
   }
   loading.value = back || false
-  loadSharedApi({ type: 'knowledge', systemType: apiType.value })
-    .putKnowledge(id, obj)
+  loadSharedApi({ type: 'knowledge', isShared: isShared.value, systemType: apiType.value })
+    .putKnowledgeWorkflow(id, obj)
     .then(() => {
       saveTime.value = new Date()
       if (bool) {
@@ -490,22 +472,110 @@ function saveknowledge(bool?: boolean, back?: boolean) {
       loading.value = false
     })
 }
+
 const go = () => {
-  if (route.path.includes('workspace')) {
-    return router.push({ path: get_route() })
-  } else {
+  if (route.path.includes('resource-management')) {
     return router.push({ path: get_resource_management_route() })
+  } else if (route.path.includes('shared')) {
+    return router.push({ path: get_shared_route() })
+  } else {
+    return router.push({ path: get_route() })
+  }
+}
+
+const get_shared_route = () => {
+  if (hasPermission([RoleConst.ADMIN, PermissionConst.SHARED_KNOWLEDGE_DOCUMENT_READ], 'OR')) {
+    return `/knowledge/${id}/shared/4/document`
+  } else if (
+    hasPermission([RoleConst.ADMIN, PermissionConst.SHARED_KNOWLEDGE_PROBLEM_READ], 'OR')
+  ) {
+    return `/knowledge/${id}/shared/4/problem`
+  } else if (
+    hasPermission([RoleConst.ADMIN, PermissionConst.SHARED_KNOWLEDGE_HIT_TEST_READ], 'OR')
+  ) {
+    return `/knowledge/${id}/shared/4/hit-test`
+  } else if (
+    hasPermission([RoleConst.ADMIN, PermissionConst.SHARED_KNOWLEDGE_CHAT_USER_READ], 'OR')
+  ) {
+    return `/knowledge/${id}/shared/4/chat-user`
+  } else if (hasPermission([RoleConst.ADMIN, PermissionConst.SHARED_KNOWLEDGE_EDIT], 'OR')) {
+    return `/knowledge/${id}/shared/4/setting`
+  } else {
+    return `/system/shared/knowledge`
   }
 }
 
 const get_resource_management_route = () => {
-  return `/knowledge/${id}/${folderId}/4/document`
-
-  // return `/system/resource-management/knowledge`
+  if (hasPermission([RoleConst.ADMIN, PermissionConst.RESOURCE_KNOWLEDGE_DOCUMENT_READ], 'OR')) {
+    return `/knowledge/${id}/resource-management/4/document`
+  } else if (
+    hasPermission([RoleConst.ADMIN, PermissionConst.RESOURCE_KNOWLEDGE_PROBLEM_READ], 'OR')
+  ) {
+    return `/knowledge/${id}/resource-management/4/problem`
+  } else if (hasPermission([RoleConst.ADMIN, PermissionConst.RESOURCE_KNOWLEDGE_HIT_TEST], 'OR')) {
+    return `/knowledge/${id}/resource-management/4/hit-test`
+  } else if (
+    hasPermission([RoleConst.ADMIN, PermissionConst.RESOURCE_KNOWLEDGE_CHAT_USER_READ], 'OR')
+  ) {
+    return `/knowledge/${id}/resource-management/4/chat-user`
+  } else if (hasPermission([RoleConst.ADMIN, PermissionConst.RESOURCE_KNOWLEDGE_EDIT], 'OR')) {
+    return `/knowledge/${id}/resource-management/4/setting`
+  } else {
+    return `/system/resource-management/knowledge`
+  }
 }
 
 const get_route = () => {
-  return `/knowledge/${id}/${folderId}/4/document`
+  const checkPermission = (permissionConst: Permission) => {
+    return hasPermission(
+      [
+        new ComplexPermission(
+          [RoleConst.USER],
+          [PermissionConst.KNOWLEDGE.getKnowledgeWorkspaceResourcePermission(id)],
+          [],
+          'AND',
+        ),
+        RoleConst.WORKSPACE_MANAGE.getWorkspaceRole,
+        permissionConst.getWorkspacePermissionWorkspaceManageRole,
+        permissionConst.getKnowledgeWorkspaceResourcePermission(id),
+      ],
+      'OR',
+    )
+  }
+  if (checkPermission(PermissionConst.KNOWLEDGE_DOCUMENT_READ)) {
+    return `/knowledge/${id}/${folderId}/4/document`
+  } else if (checkPermission(PermissionConst.KNOWLEDGE_PROBLEM_READ)) {
+    return `/knowledge/${id}/${folderId}/4/problem`
+  } else if (checkPermission(PermissionConst.KNOWLEDGE_HIT_TEST_READ)) {
+    return `/knowledge/${id}/${folderId}/4/hit-test`
+  } else if (checkPermission(PermissionConst.KNOWLEDGE_CHAT_USER_READ)) {
+    return `/knowledge/${id}/${folderId}/4/chat-user`
+  } else if (checkPermission(PermissionConst.KNOWLEDGE_EDIT)) {
+    return `/knowledge/${id}/${folderId}/4/setting`
+  } else {
+    return `/knowledge`
+  }
+}
+
+const toImportDoc = () => {
+  if (isPublish.value) {
+    const newUrl = router.resolve({
+      path: `/knowledge/import/workflow/${folderId}`,
+      query: {
+        id: id,
+      },
+    }).href
+
+    window.open(newUrl)
+  } else {
+    MsgConfirm(t('common.tip'), t('views.document.tip.toImportDocConfirm'), {
+      cancelButtonText: t('common.close'),
+      showConfirmButton: false,
+      type: 'warning',
+    })
+      .then(() => {})
+      .catch(() => {})
+  }
 }
 
 /**

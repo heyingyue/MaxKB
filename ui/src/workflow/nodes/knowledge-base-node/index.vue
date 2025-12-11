@@ -1,10 +1,12 @@
 <template>
   <NodeContainer :nodeModel="nodeModel">
+    <h5 class="title-decoration-1 mb-8">{{ $t('workflow.nodeSetting') }}</h5>
     <UserInputFieldTable ref="UserInputFieldTableFef" :node-model="nodeModel" />
+
+    <h5 class="title-decoration-1 mb-8 mt-8">
+      {{ $t('common.param.outputParam') }}
+    </h5>
     <template v-if="nodeFields.length > 0">
-      <h5 class="title-decoration-1 mb-8 mt-8">
-        {{ $t('common.param.outputParam') }}
-      </h5>
       <template v-for="(item, index) in nodeFields" :key="index">
         <div
           class="flex-between border-r-6 p-8-12 mb-8 layout-bg lighter"
@@ -14,7 +16,7 @@
           <span class="break-all">{{ item.label }} {{ '{' + item.value + '}' }}</span>
           <el-tooltip
             effect="dark"
-            :content="$t('views.workflow.setting.copyParam')"
+            :content="$t('workflow.setting.copyParam')"
             placement="top"
             v-if="showicon === index"
           >
@@ -25,6 +27,9 @@
         </div>
       </template>
     </template>
+    <div v-else class="border-r-6 p-8-12 mb-8 layout-bg lighter">
+      {{ $t('common.noData') }}
+    </div>
   </NodeContainer>
 </template>
 <script setup lang="ts">
@@ -43,14 +48,14 @@ const UserInputFieldTableFef = ref()
 
 const nodeFields = computed(() => {
   if (props.nodeModel.properties.user_input_field_list) {
-    const fileds = props.nodeModel.properties.user_input_field_list.map((item: any) => ({
+    const fields = props.nodeModel.properties.user_input_field_list.map((item: any) => ({
       label: typeof item.label == 'string' ? item.label : item.label.label,
       value: item.field,
       globeLabel: `{{global.${typeof item.label == 'string' ? item.label : item.label.label}}}`,
       globeValue: `{{context['global'].${item.field}}}`,
     }))
-    set(props.nodeModel.properties.config, 'globalFields', fileds)
-    return fileds
+    set(props.nodeModel.properties.config, 'globalFields', fields)
+    return fields
   }
   set(props.nodeModel.properties.config, 'globalFields', [])
   return []

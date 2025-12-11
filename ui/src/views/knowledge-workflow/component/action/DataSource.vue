@@ -9,13 +9,15 @@
     :other-params="{ current_workspace_id: workspace_id, current_knowledge_id: knowledge_id }"
   >
     <template #default>
-      <h4 class="title-decoration-1 mb-16 mt-4">{{ $t('views.tool.dataSource.selectDataSource') }}</h4>
+      <h4 class="title-decoration-1 mb-16 mt-4">
+        {{ $t('views.tool.dataSource.selectDataSource') }}
+      </h4>
       <el-form-item
         :label="$t('views.tool.dataSource.title')"
         prop="node_id"
         :rules="base_form_data_rule.node_id"
       >
-        <el-row class="w-full" gutter="8">
+        <el-row class="w-full" :gutter="8">
           <el-col :span="8" v-for="node in source_node_list" :key="node.id">
             <el-card
               shadow="never"
@@ -41,7 +43,7 @@
   </DynamicsForm>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, provide } from 'vue'
 import { WorkflowKind, WorkflowType } from '@/enums/application'
 import DynamicsForm from '@/components/dynamics-form/index.vue'
 import type { FormField } from '@/components/dynamics-form/type'
@@ -55,19 +57,23 @@ import useStore from '@/stores'
 const { user } = useStore()
 const route = useRoute()
 
+const props = defineProps<{
+  workflow: any
+  knowledge_id: string
+  loading: boolean
+}>()
+
 const apiType = computed(() => {
-  if (route.path.includes('resource-management')) {
+  if (route.path.includes('shared')) {
+    return 'systemShare'
+  } else if (route.path.includes('resource-management')) {
     return 'systemManage'
   } else {
     return 'workspace'
   }
 })
 const model_form_field = ref<Array<FormField>>([])
-const props = defineProps<{
-  workflow: any
-  knowledge_id: string
-  loading: boolean
-}>()
+
 const workspace_id = computed(() => {
   return user.getWorkspaceId()
 })
@@ -94,12 +100,20 @@ const form_data = computed({
 const source_node_list = computed(() => {
   return props.workflow?.nodes?.filter((n: any) => n.properties.kind === WorkflowKind.DataSource)
 })
-const {
-  params: { id, from },
-} = route as any
+const extra = ref<any>({
+  current_tool_id: undefined,
+})
+const get_extra = () => {
+  return extra.value
+}
+provide('get_extra', get_extra)
+
 const sourceChange = (node_id: string) => {
   base_form_data.value.node_id = node_id
   const n = source_node_list.value.find((n: any) => n.id == node_id)
+  if (n.properties.node_data && n.properties.node_data.tool_lib_id) {
+    extra.value.current_tool_id = n.properties.node_data.tool_lib_id
+  }
   node_id = n
     ? [WorkflowType.DataSourceLocalNode, WorkflowType.DataSourceWebNode].includes(n.type)
       ? n.type
@@ -107,7 +121,7 @@ const sourceChange = (node_id: string) => {
     : node_id
   loadSharedApi({ type: 'knowledge', systemType: apiType.value })
     .getKnowledgeWorkflowFormList(
-      id,
+      props.knowledge_id,
       [WorkflowType.DataSourceLocalNode, WorkflowType.DataSourceWebNode].includes(n.type)
         ? 'local'
         : 'tool',
@@ -132,6 +146,18 @@ const validate = () => {
 const get_data = () => {
   return form_data.value
 }
+watch(
+  source_node_list,
+  () => {
+    if (!base_form_data.value.node_id) {
+      if (source_node_list.value && source_node_list.value.length > 0) {
+        sourceChange(source_node_list.value[0].id)
+      }
+    }
+  },
+  { immediate: true },
+)
+
 defineExpose({ validate, get_data })
 </script>
 <style lang="scss" scoped></style>

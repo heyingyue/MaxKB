@@ -1,3 +1,6 @@
+import tool from '@/api/tool/tool'
+import type {title} from 'process'
+
 export default {
   node: '节点',
   nodeName: '节点名称',
@@ -82,22 +85,31 @@ export default {
   },
   nodes: {
     knowledgeWriteNode: {
-      chunk_length: '子分块长度',
-      text: '知识库写入',
       label: '知识库写入',
+      text: '将输入的分段列表写入当前知识库，并完成向量化处理',
     },
     dataSourceWebNode: {
-      label: 'Web站点',
-      text: 'Web站点',
+      label: 'Web 站点',
+      text: '输入根地址自动抓取 Web 数据（单链接对应单文档），输出含内容的文档列表',
       field_label: '文档列表',
     },
     dataSourceLocalNode: {
       label: '本地文件',
-      text: '本地文件',
+      text: '上传本地文档，输出文档列表（不解析内容，需配合 “文档内容提取” 节点解析）',
       fileList: '文件列表',
+      fileFormat: {
+        label: '支持的文件格式',
+        requiredMessage: '请选择文件格式',
+      },
+      maxFileNumber: {
+        label: '每次上传最大文件数',
+      },
+      maxFileCountNumber: {
+        label: '上传的每个文档最大(MB)',
+      },
     },
     classify: {
-      aiCapability: 'AI能力',
+      aiCapability: 'AI 能力',
       businessLogic: '业务逻辑',
       other: '其他',
       dataProcessing: '数据处理',
@@ -130,8 +142,12 @@ export default {
           audioText: '需要使用“语音转文本”节点解析音频内容',
           videoText: '需要使用“视频理解”节点解析视频内容',
           otherText: '需要自行解析该类型文件',
+          uploadMethod: '上传方式',
         },
       },
+    },
+    KnowledgeBaseNode: {
+      DocumentSetting: '文档处理设置',
     },
     aiChatNode: {
       label: 'AI 对话',
@@ -234,7 +250,7 @@ export default {
         requiredMessage: '请选择重排内容',
       },
       higher: '高于',
-      ScoreTooltip: 'Score越高相关性越强。',
+      ScoreTooltip: 'Score 越高相关性越强。',
       max_paragraph_char_number: '最大引用字符数',
       reranker_model: {
         label: '重排模型',
@@ -257,18 +273,28 @@ export default {
     },
     documentExtractNode: {
       label: '文档内容提取',
-      text: '提取文档中的内容',
+      text: '解析输入文档，输出结构化文档内容',
       content: '文档内容',
     },
     documentSplitNode: {
       label: '文档分段',
-      text: '将文档内容拆分为多个分段',
+      text: '按分段策略拆分输入文档内容，输出分段文本列表',
       paragraphList: '分段列表',
       splitStrategy: {
         label: '分段策略',
         placeholder: '请选择分段策略',
         requiredMessage: '请选择分段策略',
       },
+      chunk_length: {
+        label: '子分块长度',
+        tooltip1: '核心目标是平衡检索精度与召回效率',
+        tooltip2:
+          '避免过短拆分：单块＜50 字易导致语义碎片化，检索时可能因缺少上下文无法匹配查询意图',
+        tooltip3:
+          '避免过长拆分：单块＞500 字会增加冗余信息，降低检索精准度，且占用更多存储和计算资源',
+      },
+      title1: '分段标题设置为分段的关联问题',
+      title2: '文档名称设置为分段的关联问题',
     },
     imageUnderstandNode: {
       label: '图片理解',
@@ -303,13 +329,13 @@ export default {
     },
     mcpNode: {
       label: 'MCP 调用',
-      text: '通过SSE/Streamable HTTP方式执行MCP服务中的工具',
+      text: '通过 SSE/Streamable HTTP 方式执行MCP服务中的工具',
       getToolsSuccess: '获取工具成功',
       getTool: '获取工具',
       toolParam: '工具参数',
-      mcpServerTip: '请输入JSON格式的MCP服务器配置',
+      mcpServerTip: '请输入 JSON 格式的MCP服务器配置',
       mcpToolTip: '请选择工具',
-      configLabel: 'MCP Server Config (仅支持SSE/Streamable HTTP调用方式)',
+      configLabel: 'MCP Server Config (仅支持 SSE/Streamable HTTP 调用方式)',
       reference: '引用MCP',
     },
     imageGenerateNode: {
@@ -420,7 +446,6 @@ export default {
       placeholder: '请选择分类项',
       classify: {
         label: '意图分类',
-        placeholder: '请输入',
       },
       input: {
         label: '输入',
@@ -514,9 +539,7 @@ export default {
   },
   SystemPromptPlaceholder: '系统提示词，可以引用系统中的变量：如',
   UserPromptPlaceholder: '用户提示词，可以引用系统中的变量：如',
-  debug: {
-    executionResult: '执行结果',
-    executionSuccess: '执行成功',
-    executionFailed: '执行失败',
-  },
+  ExecutionRecord: '执行记录',
+  initiator: '发起人',
+  debug: {},
 }

@@ -1,5 +1,5 @@
 <template>
-  <LoopBodyContainer :nodeModel="nodeModel">
+  <LoopBodyContainer :nodeModel="nodeModel" ref="LoopBodyContainerRef">
     <div ref="containerRef" @wheel.stop style="height: 100%; width: 100%"></div>
   </LoopBodyContainer>
 </template>
@@ -12,16 +12,19 @@ import Dagre from '@/workflow/plugins/dagre'
 import { initDefaultShortcut } from '@/workflow/common/shortcut'
 import LoopBodyContainer from '@/workflow/nodes/loop-body-node/LoopBodyContainer.vue'
 import { WorkflowMode } from '@/enums/application'
-import { WorkFlowInstance } from '@/workflow/common/validate'
+import { WorkFlowInstance, KnowledgeWorkFlowInstance } from '@/workflow/common/validate'
 import { t } from '@/locales'
 import { disconnectByFlow } from '@/workflow/common/teleport'
 const loop_workflow_mode = inject('loopWorkflowMode') || WorkflowMode.ApplicationLoop
 const nodes: any = import.meta.glob('@/workflow/nodes/**/index.ts', { eager: true })
 const props = defineProps<{ nodeModel: any }>()
 const containerRef = ref()
-
+const LoopBodyContainerRef = ref<InstanceType<typeof LoopBodyContainer>>()
 const validate = () => {
-  const workflow = new WorkFlowInstance(lf.value.getGraphData(), WorkflowMode.ApplicationLoop)
+  const workflow =
+    loop_workflow_mode == WorkflowMode.ApplicationLoop
+      ? new WorkFlowInstance(lf.value.getGraphData(), WorkflowMode.ApplicationLoop)
+      : new KnowledgeWorkFlowInstance(lf.value.getGraphData(), WorkflowMode.KnowledgeLoop)
   return Promise.all(lf.value.graphModel.nodes.map((element: any) => element?.validate?.()))
     .then(() => {
       const loop_node_id = props.nodeModel.properties.loop_node_id
@@ -31,7 +34,7 @@ const validate = () => {
         if (loop_node.properties.node_data.loop_type == 'LOOP' && !workflow.exist_break_node()) {
           return Promise.reject({
             node: loop_node,
-            errMessage: t('views.workflow.validate.loopNodeBreakNodeRequired'),
+            errMessage: t('workflow.validate.loopNodeBreakNodeRequired'),
           })
         }
 
@@ -66,6 +69,7 @@ const refresh_loop_fields = (fields: Array<any>) => {
   const loop_node = props.nodeModel.graphModel.getNodeModelById(loop_node_id)
   if (loop_node) {
     loop_node.properties.config.fields = fields
+    loop_node.clear_next_node_field(true)
   }
 }
 
@@ -159,6 +163,7 @@ const renderGraphData = (data?: any) => {
 }
 
 const loopLayout = () => {
+  LoopBodyContainerRef.value?.zoom()
   lf.value?.extension?.dagre.layout()
 }
 onMounted(() => {

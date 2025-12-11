@@ -1,6 +1,6 @@
 <template>
   <NodeContainer :nodeModel="nodeModel">
-    <h5 class="title-decoration-1 mb-8">{{ $t('views.workflow.nodeSetting') }}</h5>
+    <h5 class="title-decoration-1 mb-8">{{ $t('workflow.nodeSetting') }}</h5>
     <el-card shadow="never" class="card-never">
       <el-form
         ref="aiChatNodeFormRef"
@@ -10,11 +10,13 @@
         require-asterisk-position="right"
         label-width="auto"
       >
-        <el-form-item :label="$t('views.problem.relateParagraph.selectDocument')" :rules="{
+        <el-form-item
+          :label="$t('views.problem.relateParagraph.selectDocument')"
+          :rules="{
             type: 'array',
             required: true,
             message: $t('views.chatLog.documentPlaceholder'),
-            trigger: 'change'
+            trigger: 'change',
           }"
         >
           <NodeCascader
@@ -26,61 +28,76 @@
           />
         </el-form-item>
         <el-form-item
-          :label="$t('views.workflow.nodes.documentSplitNode.splitStrategy.label')"
+          :label="$t('workflow.nodes.documentSplitNode.splitStrategy.label')"
           :rules="{
             required: true,
-            message: $t('views.workflow.nodes.documentSplitNode.splitStrategy.required'),
-            trigger: 'change'
+            message: $t('workflow.nodes.documentSplitNode.splitStrategy.requiredMessage'),
+            trigger: 'change',
           }"
         >
           <el-select
             v-model="form_data.split_strategy"
-            :placeholder="$t('views.workflow.nodes.documentSplitNode.splitStrategy.placeholder')">
-            <el-option
-              :label="$t('views.document.setRules.intelligent.label')"
-              value="auto"
-            />
-            <el-option
-              :label="$t('views.document.setRules.advanced.label')"
-              value="custom"
-            />
-            <el-option
-              :label="$t('views.document.fileType.QA.label')"
-              value="qa"
-            />
+            :placeholder="$t('workflow.nodes.documentSplitNode.splitStrategy.placeholder')"
+            :teleported="false"
+          >
+            <el-option :label="$t('views.document.setRules.intelligent.label')" value="auto" />
+            <el-option :label="$t('views.document.setRules.advanced.label')" value="custom" />
+            <el-option :label="$t('views.document.fileType.QA.label')" value="qa" />
           </el-select>
         </el-form-item>
         <el-form-item>
           <template #label>
-            <div class="flex">
-              <span>子分块长度</span>
-              <el-tooltip
-                effect="dark"
-                placement="top"
+            <div class="flex-between">
+              <span class="flex align-center">
+                <span>{{ $t('workflow.nodes.documentSplitNode.chunk_length.label') }}</span>
+                <el-tooltip effect="dark" placement="right">
+                  <template #content>
+                    {{ $t('workflow.nodes.documentSplitNode.chunk_length.tooltip1') }}<br />
+                    {{ $t('workflow.nodes.documentSplitNode.chunk_length.tooltip2') }}<br />
+                    {{ $t('workflow.nodes.documentSplitNode.chunk_length.tooltip3') }}
+                  </template>
+                  <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
+                </el-tooltip>
+              </span>
+              <el-select
+                v-model="form_data.chunk_size_type"
+                size="small"
+                style="width: 85px"
+                :teleported="false"
               >
-                <template #content>
-                核心目标是平衡检索精度与召回效率 <br/>
-                •避免过短拆分：单块＜50 字易导致语义碎片化，检索时可能因缺少上下文无法匹配查询意图<br/>
-                •避免过长拆分：单块＞500 字会增加冗余信息，降低检索精准度，且占用更多存储和计算资源
-                </template>
-                <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
-              </el-tooltip>
+                <el-option :label="$t('workflow.variable.Referencing')" value="referencing" />
+                <el-option :label="$t('common.custom')" value="custom" />
+              </el-select>
             </div>
           </template>
           <el-input-number
+            v-if="form_data.chunk_size_type === 'custom'"
             v-model="form_data.chunk_size"
-            show-input
             :min="50"
             :max="100000"
+            :value-on-clear="0"
+            controls-position="right"
+            class="w-full"
+            :step="1"
+            :step-strictly="true"
+          />
+          <NodeCascader
+            v-else
+            ref="nodeCascaderRef4"
+            :nodeModel="nodeModel"
+            class="w-full"
+            :placeholder="$t('views.chatLog.documentPlaceholder')"
+            v-model="form_data.chunk_size_reference"
           />
         </el-form-item>
-        <div v-if="form_data.split_strategy === 'custom'">
-          <div class="set-rules__form">
-            <div class="form-item mb-16">
-              <div class="title flex align-center mb-8">
-                          <span style="margin-right: 4px">{{
-                              $t('views.document.setRules.patterns.label')
-                            }}</span>
+
+        <el-form-item v-if="form_data.split_strategy === 'custom'">
+          <template #label>
+            <div class="flex-between">
+              <div class="flex align-center mb-8">
+                <span class="mr-4">
+                  {{ $t('views.document.setRules.patterns.label') }}
+                </span>
                 <el-tooltip
                   effect="dark"
                   :content="$t('views.document.setRules.patterns.tooltip')"
@@ -89,66 +106,134 @@
                   <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
                 </el-tooltip>
               </div>
-              <div @click.stop>
-                <el-select
-                  v-model="form_data.patterns"
-                  multiple
-                  :reserve-keyword="false"
-                  allow-create
-                  default-first-option
-                  filterable
-                  :placeholder="$t('views.document.setRules.patterns.placeholder')"
-                >
-                  <el-option
-                    v-for="(item, index) in splitPatternList"
-                    :key="index"
-                    :label="item.key"
-                    :value="item.value"
-                  >
-                  </el-option>
-                </el-select>
-              </div>
+              <el-select
+                :teleported="false"
+                v-model="form_data.patterns_type"
+                size="small"
+                style="width: 85px"
+              >
+                <el-option :label="$t('workflow.variable.Referencing')" value="referencing" />
+                <el-option :label="$t('common.custom')" value="custom" />
+              </el-select>
             </div>
-            <div class="form-item mb-16">
-              <div class="title mb-8">
+          </template>
+          <el-select
+            :teleported="false"
+            v-if="form_data.patterns_type === 'custom'"
+            v-model="form_data.patterns"
+            multiple
+            :reserve-keyword="false"
+            allow-create
+            default-first-option
+            filterable
+            :placeholder="$t('views.document.setRules.patterns.placeholder')"
+          >
+            <el-option
+              v-for="(item, index) in splitPatternList"
+              :key="index"
+              :label="item.key"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+          <NodeCascader
+            v-else
+            ref="nodeCascaderRef5"
+            :nodeModel="nodeModel"
+            class="w-full"
+            :placeholder="$t('views.chatLog.documentPlaceholder')"
+            v-model="form_data.patterns_reference"
+          />
+        </el-form-item>
+        <el-form-item v-if="form_data.split_strategy === 'custom'">
+          <template #label>
+            <div class="flex-between">
+              <span>
                 {{ $t('views.document.setRules.limit.label') }}
-              </div>
-              <el-slider
-                v-model="form_data.limit"
-                show-input
-                :show-input-controls="false"
-                :min="50"
-                :max="100000"
-              />
+              </span>
+              <el-select
+                v-model="form_data.limit_type"
+                size="small"
+                style="width: 85px"
+                :teleported="false"
+              >
+                <el-option :label="$t('workflow.variable.Referencing')" value="referencing" />
+                <el-option :label="$t('common.custom')" value="custom" />
+              </el-select>
             </div>
-            <div class="form-item mb-16">
-              <div class="title mb-8">
-                {{ $t('views.document.setRules.with_filter.label') }}
-              </div>
-              <el-switch size="small" v-model="form_data.with_filter" />
-              <div style="margin-top: 4px">
-                <el-text type="info">
-                  {{ $t('views.document.setRules.with_filter.text') }}
-                </el-text
+          </template>
+          <el-input-number
+            v-if="form_data.limit_type === 'custom'"
+            v-model="form_data.limit"
+            :min="50"
+            :max="100000"
+            :value-on-clear="0"
+            controls-position="right"
+            class="w-full"
+            :step="1"
+            :step-strictly="true"
+          />
+          <NodeCascader
+            v-else
+            ref="nodeCascaderRef6"
+            :nodeModel="nodeModel"
+            class="w-full"
+            :placeholder="$t('views.chatLog.documentPlaceholder')"
+            v-model="form_data.limit_reference"
+          />
+        </el-form-item>
+        <el-form-item v-if="form_data.split_strategy === 'custom'">
+          <template #label>
+            <div class="flex-between">
+              <div class="flex align-center mb-8">
+                <span class="mr-4">
+                  {{ $t('views.document.setRules.with_filter.label') }}
+                </span>
+                <el-tooltip
+                  effect="dark"
+                  :content="$t('views.document.setRules.with_filter.text')"
+                  placement="right"
                 >
+                  <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
+                </el-tooltip>
               </div>
+              <el-select
+                v-model="form_data.with_filter_type"
+                size="small"
+                style="width: 85px"
+                :teleported="false"
+              >
+                <el-option :label="$t('workflow.variable.Referencing')" value="referencing" />
+                <el-option :label="$t('common.custom')" value="custom" />
+              </el-select>
             </div>
-          </div>
-        </div>
+          </template>
+          <el-switch
+            v-if="form_data.with_filter_type === 'custom'"
+            size="small"
+            v-model="form_data.with_filter"
+          />
+          <NodeCascader
+            v-else
+            ref="nodeCascaderRef7"
+            :nodeModel="nodeModel"
+            class="w-full"
+            :placeholder="$t('views.chatLog.documentPlaceholder')"
+            v-model="form_data.with_filter_reference"
+          />
+        </el-form-item>
         <el-form-item v-if="form_data.split_strategy !== 'qa'">
           <template #label>
             <div class="flex-between">
-              <span>分段标题设置为分段的关联问题</span>
-              <el-select v-model="form_data.paragraph_title_relate_problem_type" size="small"
-                         style="width: 100px">
-                <el-option
-                  :label="$t('views.workflow.nodes.searchDocumentNode.custom')"
-                  value="custom"
-                />
-                <el-option
-                  :label="$t('views.workflow.variable.Referencing')"
-                  value="referencing"
-                />
+              <span> {{ $t('workflow.nodes.documentSplitNode.title1') }}</span>
+              <el-select
+                v-model="form_data.paragraph_title_relate_problem_type"
+                size="small"
+                style="width: 85px"
+                :teleported="false"
+              >
+                <el-option :label="$t('workflow.variable.Referencing')" value="referencing" />
+                <el-option :label="$t('common.custom')" value="custom" />
               </el-select>
             </div>
           </template>
@@ -169,17 +254,15 @@
         <el-form-item>
           <template #label>
             <div class="flex-between">
-              <span>文档名称设置为分段的关联问题</span>
-              <el-select v-model="form_data.document_name_relate_problem_type" size="small"
-                         style="width: 100px">
-                <el-option
-                  :label="$t('views.workflow.nodes.searchDocumentNode.custom')"
-                  value="custom"
-                />
-                <el-option
-                  :label="$t('views.workflow.variable.Referencing')"
-                  value="referencing"
-                />
+              <span>{{ $t('workflow.nodes.documentSplitNode.title2') }}</span>
+              <el-select
+                v-model="form_data.document_name_relate_problem_type"
+                size="small"
+                style="width: 85px"
+                :teleported="false"
+              >
+                <el-option :label="$t('workflow.variable.Referencing')" value="referencing" />
+                <el-option :label="$t('common.custom')" value="custom" />
               </el-select>
             </div>
           </template>
@@ -214,7 +297,7 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const {
-  query: { id } // id为knowledgeID
+  query: { id }, // id为knowledgeID
 } = route as any
 
 const apiType = computed(() => {
@@ -240,11 +323,18 @@ const form = {
   document_name_relate_problem: false,
   document_name_relate_problem_reference: [],
   limit: 4096,
+  limit_type: 'custom',
+  limit_reference: [],
   chunk_size: 256,
+  chunk_size_type: 'custom',
+  chunk_size_reference: [],
   patterns: [],
-  with_filter: false
+  patterns_type: 'custom',
+  patterns_reference: [],
+  with_filter: false,
+  with_filter_type: 'custom',
+  with_filter_reference: [],
 }
-
 
 const form_data = computed({
   get: () => {
@@ -257,21 +347,28 @@ const form_data = computed({
   },
   set: (value) => {
     set(props.nodeModel.properties, 'node_data', value)
-  }
+  },
 })
-
 
 const aiChatNodeFormRef = ref<FormInstance>()
 const nodeCascaderRef = ref()
 const nodeCascaderRef2 = ref()
 const nodeCascaderRef3 = ref()
+const nodeCascaderRef4 = ref()
+const nodeCascaderRef5 = ref()
+const nodeCascaderRef6 = ref()
+const nodeCascaderRef7 = ref()
 
 const validate = () => {
   return Promise.all([
     nodeCascaderRef.value ? nodeCascaderRef.value.validate() : Promise.resolve(''),
     nodeCascaderRef2.value ? nodeCascaderRef2.value.validate() : Promise.resolve(''),
     nodeCascaderRef3.value ? nodeCascaderRef3.value.validate() : Promise.resolve(''),
-    aiChatNodeFormRef.value?.validate()
+    nodeCascaderRef4.value ? nodeCascaderRef4.value.validate() : Promise.resolve(''),
+    nodeCascaderRef5.value ? nodeCascaderRef5.value.validate() : Promise.resolve(''),
+    nodeCascaderRef6.value ? nodeCascaderRef6.value.validate() : Promise.resolve(''),
+    nodeCascaderRef7.value ? nodeCascaderRef7.value.validate() : Promise.resolve(''),
+    aiChatNodeFormRef.value?.validate(),
   ]).catch((err: any) => {
     return Promise.reject({ node: props.nodeModel, errMessage: err })
   })
@@ -286,15 +383,11 @@ const initSplitPatternList = () => {
     })
 }
 
-
 onMounted(() => {
   initSplitPatternList()
 
   set(props.nodeModel, 'validate', validate)
 })
-
 </script>
 
-<style lang="scss" scoped>
-
-</style>
+<style lang="scss" scoped></style>

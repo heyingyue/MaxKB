@@ -62,6 +62,7 @@ export default {
     existingExtensionsTip: '文件后缀已存在',
     localUpload: '本地文件',
     urlUpload: 'URL 地址',
+    uploadMethodTip: '请选择上传方式',
   },
   status: {
     label: '状态',
@@ -72,6 +73,10 @@ export default {
     disableSuccess: '禁用成功',
     published: '已发布',
     unpublished: '未发布',
+    success: '成功',
+    fail: '失败',
+    all: '全部',
+    padding: '执行中',
   },
   param: {
     outputParam: '输出参数',
@@ -124,4 +129,14 @@ export default {
     placeholder: '请输入提示词',
   },
   variable: '变量',
+  allCheck: '全选',
+  type: '类型',
+  pages: {
+    prev: '上一条',
+    next: '下一条',
+  },
+  steps: {
+    prev: '上一步',
+    next: '下一步',
+  },
 }
