@@ -19,7 +19,7 @@ from langchain_core.messages import BaseMessage, AIMessage
 from application.flow.i_step_node import NodeResult, INode
 from application.flow.step_node.ai_chat_step_node.i_chat_node import IChatNode
 from application.flow.tools import Reasoning, mcp_response_generator
-from application.models import Application
+from application.models import Application, ApplicationApiKey
 from common.utils.rsa_util import rsa_long_decrypt
 from common.utils.tool_code import ToolExecutor
 from models_provider.models import Model
@@ -177,7 +177,8 @@ class BaseChatNode(IChatNode):
                                                               **model_params_setting)
         history_message = self.get_history_message(history_chat_record, dialogue_number, dialogue_type,
                                                    self.runtime_node_id)
-        self.context['history_message'] = history_message
+        self.context['history_message'] = [{'content': message.content, 'role': message.type} for message in
+                                           (history_message if history_message is not None else [])]
         question = self.generate_prompt_question(prompt)
         self.context['question'] = question.content
         system = self.workflow_manage.generate_prompt(system)
@@ -197,8 +198,6 @@ class BaseChatNode(IChatNode):
         if stream:
             r = chat_model.stream(message_list)
             return NodeResult({'result': r, 'chat_model': chat_model, 'message_list': message_list,
-                               'history_message': [{'content': message.content, 'role': message.type} for message in
-                                                   (history_message if history_message is not None else [])],
                                'question': question.content}, {},
                               _write_context=write_context_stream)
         else:
@@ -257,8 +256,14 @@ class BaseChatNode(IChatNode):
                 self.context['application_ids'] = application_ids
                 for application_id in application_ids:
                     app = QuerySet(Application).filter(id=application_id).first()
+                    app_key = QuerySet(ApplicationApiKey).filter(application_id=application_id, is_active=True).first()
+                    # TODO 处理api
+                    if app_key is not None:
+                        api_key = app_key.secret_key
+                    else:
+                        continue
                     executor = ToolExecutor()
-                    app_config = executor.get_app_mcp_config(app.id, app.name, app.desc)
+                    app_config = executor.get_app_mcp_config(api_key)
                     mcp_servers_config[str(app.id)] = app_config
 
         if len(mcp_servers_config) > 0:
