@@ -36,6 +36,16 @@ export default {
     continue: '繼續',
     stopChat: '停止回答',
     startChat: '開始回答',
+    likeTitle: '你覺得什麼讓你滿意？',
+    opposeTitle: '請告訴我們不滿意的原因',
+    vote: {
+    accurate: '內容準確',
+    inaccurate: '回答不準確',
+    complete: '內容完善',
+    irrelevantAnswer: '回答不相關',
+    other: '其他',
+    placeholder: '告訴我們更多關於你的相關體驗',
+  },
   },
   tip: {
     error500Message: '抱歉，當前正在維護，無法提供服務，請稍後再試！',
@@ -108,6 +118,8 @@ export default {
     documentSplitTip: '每個文件僅能預覽前五個段落',
     paragraphRules: '分段規則',
     writeContent: '寫入內容',
+    cancel: '取消執行',
+    cancelExecutionTip: '確定取消所選的任務？',
   },
   KnowledgeSource: {
     title: '知識來源',

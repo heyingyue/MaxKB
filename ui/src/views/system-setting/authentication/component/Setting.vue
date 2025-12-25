@@ -111,16 +111,17 @@
             ]"
           >
             <el-row :gutter="16" style="margin-left: 10px">
-              <el-col :span="12">
-                <div style="display: flex; align-items: center; gap: 8px; min-width: 0">
-                  <span style="font-size: 13px; white-space: nowrap">
+              <el-col :span="24">
+                <div class="flex">
+                  <span style="font-size: 13px; white-space: nowrap;width: 50px"
+                        class="text-right mr-8">
                     {{ $t('views.role.member.role') }}
                   </span>
                   <el-select
                     v-model="form.role_id"
                     :placeholder="`${$t('common.selectPlaceholder')}${$t('views.role.member.role')}`"
-                    style="flex: 1; min-width: 180px"
                     @change="handleRoleChange"
+                    class="w-240"
                   >
                     <el-option
                       v-for="role in roleOptions"
@@ -131,21 +132,43 @@
                   </el-select>
                 </div>
               </el-col>
-              <el-col :span="12" v-if="user.isEE() && showWorkspaceSelector">
-                <div style="display: flex; align-items: center; gap: 8px; min-width: 0">
-                  <span style="font-size: 13px; white-space: nowrap">
+              <el-col :span="24" v-if="user.isEE() && showWorkspaceSelector" class="mt-16">
+                <div class="flex">
+                  <span style="font-size: 13px; white-space: nowrap;width: 50px"
+                        class="text-right mr-8">
                     {{ $t('views.role.member.workspace') }}
                   </span>
                   <el-select
                     v-model="form.workspace_id"
                     :placeholder="`${$t('common.selectPlaceholder')}${$t('views.role.member.workspace')}`"
-                    style="flex: 1; min-width: 180px"
+                    class="w-240"
                   >
                     <el-option
                       v-for="workspace in workspaceOptions"
                       :key="workspace.id"
                       :label="workspace.name"
                       :value="workspace.id"
+                    />
+                  </el-select>
+                </div>
+              </el-col>
+              <el-col :span="24" v-if="(user.isEE() || user.isPE()) && showPermissionSelector"
+                      class="mt-16">
+                <div class="flex">
+                  <span style="font-size: 13px; white-space: nowrap;width: 50px"
+                        class="text-right mr-8">
+                    {{ $t('views.system.resourceAuthorization.title') }}
+                  </span>
+                  <el-select
+                    v-model="form.permission"
+                    :placeholder="`${$t('common.selectPlaceholder')}${$t('views.system.resourceAuthorization.title')}`"
+                    class="w-240"
+                  >
+                    <el-option
+                      v-for="permission in permissionOptions"
+                      :key="permission.value"
+                      :label="permission.label"
+                      :value="permission.value"
                     />
                   </el-select>
                 </div>
@@ -172,15 +195,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { ComplexPermission } from '@/utils/permission/type'
-import { PermissionConst, RoleConst } from '@/utils/permission/data'
-import type { FormInstance } from 'element-plus'
-import { t } from '@/locales'
+import {ref, onMounted, computed} from 'vue'
+import {ComplexPermission} from '@/utils/permission/type'
+import {EditionConst, PermissionConst, RoleConst} from '@/utils/permission/data'
+import type {FormInstance} from 'element-plus'
+import {t} from '@/locales'
 import authApi from '@/api/system-settings/auth-setting.ts'
-import { MsgSuccess } from '@/utils/message.ts'
+import {MsgSuccess} from '@/utils/message.ts'
 import WorkspaceApi from '@/api/workspace/workspace.ts'
 import useStore from '@/stores'
+import {AuthorizationEnum} from "@/enums/system.ts";
+import {hasPermission} from "@/utils/permission";
 
 const loginMethods = ref<Array<{ label: string; value: string }>>([])
 const loading = ref(false)
@@ -194,6 +219,7 @@ const form = ref<any>({
   lock_time: 10,
   role_id: 'USER',
   workspace_id: 'default',
+  permission: 'NOT_AUTH',
 })
 
 const normalizeInputValue = (val: number | null): number => {
@@ -234,6 +260,7 @@ const submit = async () => {
       lock_time: form.value.lock_time,
       role_id: form.value.role_id,
       workspace_id: form.value.workspace_id,
+      permission: form.value.permission,
     }
     await authApi.putLoginSetting(params)
     MsgSuccess(t('common.saveSuccess'))
@@ -247,14 +274,46 @@ const submit = async () => {
 
 const roleOptions = ref<Array<{ id: string; name: string; type?: string }>>([])
 const workspaceOptions = ref<Array<{ id: string; name: string }>>([])
-const { user } = useStore()
+const {user} = useStore()
 const selectedRoleType = ref<string>('') // 存储选中角色类型，用于控制 workspace 显示
 const showWorkspaceSelector = computed(() => selectedRoleType.value !== 'ADMIN')
+const showPermissionSelector = computed(() => selectedRoleType.value === 'USER')
+const permissionOptions = computed(() => {
+  const baseOptions = [
+    {
+      label: t('views.system.resourceAuthorization.setting.check'),
+      value: AuthorizationEnum.VIEW,
+      desc: t('views.system.resourceAuthorization.setting.checkDesc'),
+    },
+    {
+      label: t('views.system.resourceAuthorization.setting.management'),
+      value: AuthorizationEnum.MANAGE,
+      desc: t('views.system.resourceAuthorization.setting.managementDesc'),
+    },
+    {
+      label: t('views.system.resourceAuthorization.setting.notAuthorized'),
+      value: AuthorizationEnum.NOT_AUTH,
+      desc: '',
+    }
+  ];
 
+  if (hasPermission([EditionConst.IS_EE, EditionConst.IS_PE], 'OR')) {
+    baseOptions.splice(2, 0, {
+      label: t('views.system.resourceAuthorization.setting.role'),
+      value: AuthorizationEnum.ROLE,
+      desc: t('views.system.resourceAuthorization.setting.roleDesc'),
+    });
+  }
+
+  return baseOptions;
+});
 // 当角色变更时更新 selectedRoleType
 const handleRoleChange = (roleId: string) => {
   const selectedRole = roleOptions.value.find((role) => role.id === roleId)
   selectedRoleType.value = selectedRole?.type || ''
+  if (form.value.workspace_id === 'None' && showWorkspaceSelector) {
+    form.value.workspace_id = 'default'
+  }
 }
 
 onMounted(async () => {
@@ -265,24 +324,24 @@ onMounted(async () => {
     // 并行请求：角色列表 + 登录设置；若为 EE 同时请求 workspace 列表
     const roleP = WorkspaceApi.getWorkspaceRoleList()
       .then((r) => r)
-      .catch(() => ({ data: [] }))
+      .catch(() => ({data: []}))
     const settingP = authApi
       .getLoginSetting()
       .then((r) => r)
-      .catch(() => ({ data: {} }))
+      .catch(() => ({data: {}}))
     const tasks: Promise<any>[] = [roleP, settingP]
     if (isEE) {
       tasks.push(
         WorkspaceApi.getWorkspaceList()
           .then((r) => r)
-          .catch(() => ({ data: [] })),
+          .catch(() => ({data: []})),
       )
     }
 
     const results = await Promise.all(tasks)
-    const roleRes = results[0] ?? { data: [] }
-    const settingRes = results[1] ?? { data: {} }
-    const workspaceRes = isEE ? (results[2] ?? { data: [] }) : null
+    const roleRes = results[0] ?? {data: []}
+    const settingRes = results[1] ?? {data: {}}
+    const workspaceRes = isEE ? (results[2] ?? {data: []}) : null
 
     // 处理角色列表（尽早回显）
     const rolesData = Array.isArray(roleRes?.data) ? roleRes.data : []
@@ -301,13 +360,14 @@ onMounted(async () => {
       lock_time: data.lock_time ?? form.value.lock_time ?? 10,
       role_id: data.role_id ?? form.value.role_id ?? 'USER',
       workspace_id: data.workspace_id ?? form.value.workspace_id ?? 'default',
+      permission: data.permission ?? form.value.permission ?? 'NOT_AUTH',
     }
     loginMethods.value = Array.isArray(data.auth_types) ? data.auth_types : []
 
     // 处理 workspace 列表（如果需要）
     if (isEE && workspaceRes) {
       const wks = Array.isArray(workspaceRes.data) ? workspaceRes.data : []
-      workspaceOptions.value = wks.map((item: any) => ({ id: item.id, name: item.name }))
+      workspaceOptions.value = wks.map((item: any) => ({id: item.id, name: item.name}))
     }
 
     // 初始化 selectedRoleType（基于当前回显的 role_id 与已加载的 roleOptions）

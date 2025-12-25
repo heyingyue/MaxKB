@@ -35,7 +35,6 @@ def _write_context(node_variable: Dict, workflow_variable: Dict, node: INode, wo
     node.context['message_tokens'] = message_tokens
     node.context['answer_tokens'] = answer_tokens
     node.context['answer'] = answer
-    node.context['history_message'] = node_variable['history_message']
     node.context['question'] = node_variable['question']
     node.context['run_time'] = time.time() - node.context['start_time']
     node.context['reasoning_content'] = reasoning_content
@@ -257,14 +256,13 @@ class BaseChatNode(IChatNode):
                 for application_id in application_ids:
                     app = QuerySet(Application).filter(id=application_id).first()
                     app_key = QuerySet(ApplicationApiKey).filter(application_id=application_id, is_active=True).first()
-                    # TODO 处理api
                     if app_key is not None:
                         api_key = app_key.secret_key
                     else:
                         continue
                     executor = ToolExecutor()
                     app_config = executor.get_app_mcp_config(api_key)
-                    mcp_servers_config[str(app.id)] = app_config
+                    mcp_servers_config[app.name] = app_config
 
         if len(mcp_servers_config) > 0:
             r = mcp_response_generator(chat_model, message_list, json.dumps(mcp_servers_config), mcp_output_enable)

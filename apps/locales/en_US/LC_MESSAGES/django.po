@@ -8881,3 +8881,9 @@ msgstr ""
 
 msgid "Export knowledge workflow"
 msgstr ""
+
+msgid "Role IDs cannot be empty"
+msgstr ""
+
+msgid "Some roles do not exist"
+msgstr ""
