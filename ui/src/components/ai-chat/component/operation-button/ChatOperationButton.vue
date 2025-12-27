@@ -52,7 +52,13 @@
           </el-button>
         </el-tooltip>
         <el-divider direction="vertical" />
-        <el-popover ref="likePopoverRef" trigger="click" placement="bottom-start" :width="400">
+        <el-popover
+          ref="likePopoverRef"
+          trigger="click"
+          placement="bottom-start"
+          :width="360"
+          popper-class="vote-popover"
+        >
           <template #reference>
             <span>
               <el-tooltip
@@ -68,6 +74,7 @@
             </span>
           </template>
           <VoteReasonContent
+            v-if="props.data.record_id"
             vote-type="0"
             :chat-id="props.chatId"
             :record-id="props.data.record_id"
@@ -88,7 +95,13 @@
           </el-button>
         </el-tooltip>
         <el-divider direction="vertical" v-if="buttonData?.vote_status === '-1'" />
-        <el-popover ref="opposePopoverRef" trigger="click" placement="bottom-start" :width="400">
+        <el-popover
+          ref="opposePopoverRef"
+          trigger="click"
+          placement="bottom-start"
+          :width="360"
+          popper-class="vote-popover"
+        >
           <template #reference>
             <span>
               <el-tooltip
@@ -104,6 +117,7 @@
             </span>
           </template>
           <VoteReasonContent
+            v-if="props.data.record_id"
             vote-type="1"
             :chat-id="props.chatId"
             :record-id="props.data.record_id"
@@ -604,11 +618,15 @@ onBeforeUnmount(() => {
   }
 })
 </script>
-<style lang="scss" scoped>
+<style lang="scss">
 @media only screen and (max-width: 430px) {
   .chat-operation-button {
     display: block;
     text-align: right;
   }
+}
+.vote-popover {
+  padding: 20px 24px !important;
+  color: var(--el-text-color-primary) !important;;
 }
 </style>

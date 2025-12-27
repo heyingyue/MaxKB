@@ -8887,3 +8887,18 @@ msgstr ""
 
 msgid "Some roles do not exist"
 msgstr ""
+
+msgid "Authorized pagination list for obtaining resources"
+msgstr ""
+
+msgid "Resources mapping"
+msgstr ""
+
+msgid "Batch set user roles"
+msgstr ""
+
+msgid "Role Setting cannot be empty"
+msgstr ""
+
+msgid "View related resources"
+msgstr ""
