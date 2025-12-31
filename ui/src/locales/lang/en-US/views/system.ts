@@ -162,4 +162,8 @@ export default {
   failedTip: 'Next, lock the account',
   minute: 'Minutes',
   third_party_user_default_role: 'Default Role Assignment for Third-party Users',
+  resourceMapping: {
+    title: 'View Associated Resources',
+    sub_title: 'Associated Resources',
+  },
 }

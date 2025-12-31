@@ -117,7 +117,7 @@
               v-if="permissionPrecise.relate_map(model.id)"
             >
               <AppIcon iconName="app-resource-mapping" class="color-secondary"></AppIcon>
-              {{ $t('views.system.resourceMapping.title', '查看关联资源') }}
+              {{ $t('views.system.resourceMapping.title')}}
             </el-dropdown-item>
             <el-dropdown-item
               divided
@@ -176,7 +176,7 @@ const props = defineProps<{
   apiType: 'systemShare' | 'workspace' | 'systemManage'
 }>()
 const openResourceMappingDrawer = (model: any) => {
-  resourceMappingDrawerRef.value?.open('MODEL', model.id)
+  resourceMappingDrawerRef.value?.open('MODEL', model)
 }
 const isSystemShare = computed(() => {
   return props.apiType === 'systemShare'

@@ -300,7 +300,7 @@
                               iconName="app-resource-mapping"
                               class="color-secondary"
                             ></AppIcon>
-                            {{ $t('views.system.resourceMapping.title', '查看关联资源') }}
+                            {{ $t('views.system.resourceMapping.title')}}
                           </el-dropdown-item>
                           <el-dropdown-item
                             @click.stop="openMoveToDialog(item)"
@@ -407,7 +407,7 @@ import ResourceMappingDrawer from '@/components/resource_mapping/index.vue'
 const resourceMappingDrawerRef = ref<InstanceType<typeof ResourceMappingDrawer>>()
 const route = useRoute()
 const openResourceMappingDrawer = (tool: any) => {
-  resourceMappingDrawerRef.value?.open('TOOL', tool.id)
+  resourceMappingDrawerRef.value?.open('TOOL', tool)
 }
 const {folder, user, tool} = useStore()
 onBeforeRouteLeave((to, from) => {
