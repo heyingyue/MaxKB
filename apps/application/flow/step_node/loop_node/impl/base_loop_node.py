@@ -200,6 +200,8 @@ def loop(workflow_manage_new_instance, node: INode, generate_loop):
         instance._cleanup()
         if break_outer:
             break
+        if instance.is_the_task_interrupted():
+            break
     node.context['is_interrupt_exec'] = is_interrupt_exec
     node.context['loop_node_data'] = loop_node_data
     node.context['loop_answer_data'] = loop_answer_data
@@ -301,5 +303,6 @@ class BaseLoopNode(ILoopNode):
             'loop_context_data': self.get_loop_context_data(),
             'loop_node_data': self.context.get("loop_node_data"),
             'loop_answer_data': self.context.get("loop_answer_data"),
-            'err_message': self.err_message
+            'err_message': self.err_message,
+            'enableException': self.node.properties.get('enableException'),
         }
