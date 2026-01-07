@@ -76,6 +76,7 @@
           collapse-tags
           collapse-tags-tooltip
           style="width: 220px"
+          :placeholder="$t('common.search')"
         >
           <el-option :label="$t('views.application.title')" value="APPLICATION" />
           <el-option :label="$t('views.knowledge.title')" value="KNOWLEDGE" />
@@ -218,6 +219,9 @@ import useStore from '@/stores'
 import { t } from '@/locales'
 import type { Provider } from '@/api/type/model'
 import { loadPermissionApi } from '@/utils/dynamics-api/permission-api.ts'
+import permissionMap from '@/permission'
+import { MsgError } from '@/utils/message'
+
 const route = useRoute()
 const router = useRouter()
 const { model, user } = useStore()
@@ -336,13 +340,53 @@ function filterWorkspaceChange(val: string) {
 }
 
 async function getWorkspaceList() {
-  if (user.isEE()) {
+  if (user.isEE() && showWorkspace.value) {
     const res = await loadPermissionApi('workspace').getSystemWorkspaceList(loading)
     workspaceOptions.value = res.data.map((item: any) => ({
       label: item.name,
       value: item.id,
     }))
   }
+}
+
+const hasResourceWorkspacePermission = (row: any) => {
+  return permissionMap[row.source_type.toLowerCase() as 'application' | 'knowledge'][
+    'workspace'
+  ].jump_read(row.id)
+}
+
+const hasResourceSystemManagePermission = (row: any) => {
+  return permissionMap[row.source_type.toLowerCase() as 'application' | 'knowledge'][
+    'systemManage'
+  ].jump_read()
+}
+const hasResourceSharedPermission = () => {
+  return permissionMap['knowledge']['systemShare'].jump_read()
+}
+
+function hasJumpPermission(from: string, row: any) {
+  if (row.source_type === 'KNOWLEDGE') {
+    if (from === 'shared') {
+      if (row.workspace_id === 'None') {
+        return hasResourceSharedPermission()
+      } else {
+        return hasResourceSystemManagePermission(row)
+      }
+    } else if (from === 'resource-management') {
+      return hasResourceSystemManagePermission(row)
+    } else if (from === 'workspace') {
+      return hasResourceWorkspacePermission(row)
+    }
+  }
+
+  if (row.source_type === 'APPLICATION') {
+    if (['shared', 'resource-management'].includes(from)) {
+      return hasResourceSystemManagePermission(row)
+    } else if (from === 'workspace') {
+      return hasResourceWorkspacePermission(row)
+    }
+  }
+  return false
 }
 
 function toSetting(row: any) {
@@ -355,14 +399,22 @@ function toSetting(row: any) {
     from = 'workspace'
   }
   if (row.source_type === 'KNOWLEDGE') {
+    if (!hasJumpPermission(from, row)) {
+      MsgError(t('common.noTargetPermission'))
+      return
+    }
     const newUrl = router.resolve({
-      path: `/knowledge/${row.source_id}/${from}/${row.type}/document`,
+      path: `/knowledge/${row.source_id}/${from === 'shared' ? (row.workspace_id === 'None' ? 'shared' : 'resource-management') : from}/${row.type}/document`,
     }).href
     window.open(newUrl)
   } else if (row.source_type === 'APPLICATION') {
+    if (!hasJumpPermission(from, row)) {
+      MsgError(t('common.noTargetPermission'))
+      return
+    }
     if (row.type === 'WORK_FLOW') {
       const newUrl = router.resolve({
-        path: `/application/${from}/${row.source_id}/workflow`,
+        path: `/application/${from === 'shared' ? 'resource-management' : from}/${row.source_id}/workflow`,
       }).href
       window.open(newUrl)
     } else {
