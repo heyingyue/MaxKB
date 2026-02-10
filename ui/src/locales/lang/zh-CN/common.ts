@@ -67,6 +67,7 @@ export default {
   },
   status: {
     label: '状态',
+    enable: '启用',
     disable: '禁用',
     enabled: '已启用',
     disabled: '已禁用',
@@ -143,4 +144,9 @@ export default {
     next: '下一步',
   },
   use: '使用',
+  ExecutionRecord: {
+    title: '执行记录',
+    subTitle: '查看执行记录',
+  },
+  sourceType: '资源类型',
 }

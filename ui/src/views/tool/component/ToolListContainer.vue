@@ -292,6 +292,18 @@
                             ></AppIcon>
                             {{ $t('views.system.resourceAuthorization.title') }}
                           </el-dropdown-item>
+
+                          <el-dropdown-item
+                            @click.stop="openTriggerDrawer(item)"
+                            v-if="
+                              ['workspace', 'systemManage'].includes(apiType) &&
+                              item.tool_type === 'CUSTOM' &&
+                              permissionPrecise.trigger_read(item.id)
+                            "
+                          >
+                            <AppIcon iconName="app-trigger" class="color-secondary"></AppIcon>
+                            {{ $t('views.trigger.title') }}
+                          </el-dropdown-item>
                           <el-dropdown-item
                             text
                             @click.stop="openResourceMappingDrawer(item)"
@@ -302,6 +314,17 @@
                               class="color-secondary"
                             ></AppIcon>
                             {{ $t('views.system.resourceMapping.title') }}
+                          </el-dropdown-item>
+                          <el-dropdown-item
+                            text
+                            @click.stop="openToolRecordDrawer(item)"
+                            v-if="item.tool_type === 'CUSTOM' && permissionPrecise.record(item.id)"
+                          >
+                            <AppIcon
+                              iconName="app-schedule-report"
+                              class="color-secondary"
+                            ></AppIcon>
+                            {{ $t('common.ExecutionRecord.subTitle') }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             @click.stop="openMoveToDialog(item)"
@@ -374,6 +397,11 @@
   />
   <ToolStoreDescDrawer ref="toolStoreDescDrawerRef" />
   <ResourceMappingDrawer ref="resourceMappingDrawerRef"></ResourceMappingDrawer>
+  <ResourceTriggerDrawer
+    ref="resourceTriggerDrawerRef"
+    :source="SourceTypeEnum.TOOL"
+  ></ResourceTriggerDrawer>
+  <ToolRecordDrawer ref="toolRecordDrawerRef" />
 </template>
 
 <script lang="ts" setup>
@@ -391,6 +419,7 @@ import AddInternalToolDialog from '@/views/tool/tool-store/AddInternalToolDialog
 import MoveToDialog from '@/components/folder-tree/MoveToDialog.vue'
 import ResourceAuthorizationDrawer from '@/components/resource-authorization-drawer/index.vue'
 import McpToolConfigDialog from '@/views/tool/component/McpToolConfigDialog.vue'
+import ResourceTriggerDrawer from '@/views/trigger/ResourceTriggerDrawer.vue'
 import { resetUrl } from '@/utils/common'
 import { MsgSuccess, MsgConfirm, MsgError } from '@/utils/message'
 import { SourceTypeEnum } from '@/enums/common'
@@ -404,12 +433,10 @@ import ToolStoreDescDrawer from '@/views/tool/component/ToolStoreDescDrawer.vue'
 
 import bus from '@/bus'
 import ResourceMappingDrawer from '@/components/resource_mapping/index.vue'
+import ToolRecordDrawer from '@/views/tool/execution-record/TriggerRecordDrawer.vue'
 
-const resourceMappingDrawerRef = ref<InstanceType<typeof ResourceMappingDrawer>>()
 const route = useRoute()
-const openResourceMappingDrawer = (tool: any) => {
-  resourceMappingDrawerRef.value?.open('TOOL', tool)
-}
+
 const { folder, user, tool } = useStore()
 onBeforeRouteLeave((to, from) => {
   tool.setToolList([])
@@ -444,14 +471,31 @@ const MoreFieldPermission = (id: any) => {
     permissionPrecise.value.delete(id) ||
     permissionPrecise.value.auth(id) ||
     permissionPrecise.value.relate_map(id) ||
+    permissionPrecise.value.trigger_read(id) ||
+    permissionPrecise.value.record(id) ||
     isSystemShare.value
   )
+}
+
+const resourceTriggerDrawerRef = ref<InstanceType<typeof ResourceTriggerDrawer>>()
+const openTriggerDrawer = (data: any) => {
+  resourceTriggerDrawerRef.value?.open(data)
+}
+
+const resourceMappingDrawerRef = ref<InstanceType<typeof ResourceMappingDrawer>>()
+const openResourceMappingDrawer = (tool: any) => {
+  resourceMappingDrawerRef.value?.open('TOOL', tool)
 }
 
 const ResourceAuthorizationDrawerRef = ref()
 
 function openAuthorization(item: any) {
   ResourceAuthorizationDrawerRef.value.open(item.id)
+}
+
+const toolRecordDrawerRef = ref<InstanceType<typeof ToolRecordDrawer>>()
+const openToolRecordDrawer = (data: any) => {
+  toolRecordDrawerRef.value?.open(data)
 }
 
 const InitParamDrawerRef = ref()

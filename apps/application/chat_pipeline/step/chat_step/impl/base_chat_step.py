@@ -204,8 +204,10 @@ class BaseChatStep(IChatStep):
 
     def get_details(self, manage, **kwargs):
         return {
+            'status': self.status,
+            'err_message': self.err_message,
             'step_type': 'chat_step',
-            'run_time': self.context['run_time'],
+            'run_time': self.context.get('run_time') or 0,
             'model_id': str(manage.context['model_id']),
             'message_list': self.reset_message_list(self.context['step_args'].get('message_list'),
                                                     self.context['answer_text']),
@@ -225,7 +227,7 @@ class BaseChatStep(IChatStep):
         return result
 
     def _handle_mcp_request(self, mcp_source, mcp_servers, mcp_tool_ids, tool_ids,
-                            application_ids, mcp_output_enable, chat_model, message_list):
+                            application_ids, mcp_output_enable, chat_model, message_list, agent_id):
 
         mcp_servers_config = {}
 
@@ -243,6 +245,7 @@ class BaseChatStep(IChatStep):
                 if mcp_tool and mcp_tool['is_active']:
                     mcp_servers_config = {**mcp_servers_config, **json.loads(mcp_tool['code'])}
 
+        tool_init_params = {}
         if tool_ids and len(tool_ids) > 0:  # 如果有工具ID，则将其转换为MCP
             self.context['tool_ids'] = tool_ids
             for tool_id in tool_ids:
@@ -252,9 +255,10 @@ class BaseChatStep(IChatStep):
                 executor = ToolExecutor()
                 if tool.init_params is not None:
                     params = json.loads(rsa_long_decrypt(tool.init_params))
+                    tool_init_params = json.loads(rsa_long_decrypt(tool.init_params))
                 else:
                     params = {}
-                tool_config = executor.get_tool_mcp_config(tool.code, params, tool.name, tool.desc)
+                tool_config = executor.get_tool_mcp_config(tool, params)
 
                 mcp_servers_config[str(tool.id)] = tool_config
 
@@ -273,7 +277,8 @@ class BaseChatStep(IChatStep):
                     if application_access_token is not None and application_access_token.authentication:
                         raise AppApiException(
                             500,
-                            _('Agent 【{name}】 access token authentication is not supported for agent tool').format(name=app.name)
+                            _('Agent 【{name}】 access token authentication is not supported for agent tool').format(
+                                name=app.name)
                         )
                 else:
                     raise AppApiException(
@@ -285,7 +290,10 @@ class BaseChatStep(IChatStep):
                 mcp_servers_config[app.name] = app_config
 
         if len(mcp_servers_config) > 0:
-            return mcp_response_generator(chat_model, message_list, json.dumps(mcp_servers_config), mcp_output_enable)
+            source_id = agent_id
+            source_type = 'APPLICATION'
+            return mcp_response_generator(chat_model, message_list, json.dumps(mcp_servers_config), mcp_output_enable,
+                                          tool_init_params, source_id, source_type)
 
         return None
 
@@ -299,7 +307,9 @@ class BaseChatStep(IChatStep):
                           mcp_source="referencing",
                           tool_ids=None,
                           application_ids=None,
-                          mcp_output_enable=True):
+                          mcp_output_enable=True,
+                          agent_id=None
+                          ):
         if paragraph_list is None:
             paragraph_list = []
         directly_return_chunk_list = [AIMessageChunk(content=paragraph.content)
@@ -319,7 +329,7 @@ class BaseChatStep(IChatStep):
             mcp_result = self._handle_mcp_request(
                 mcp_source, mcp_servers, mcp_tool_ids, tool_ids,
                 application_ids, mcp_output_enable, chat_model,
-                message_list,
+                message_list, agent_id
             )
             if mcp_result:
                 return mcp_result, True
@@ -346,7 +356,7 @@ class BaseChatStep(IChatStep):
                                                          no_references_setting, problem_text, mcp_tool_ids,
                                                          mcp_servers, mcp_source, tool_ids,
                                                          application_ids,
-                                                         mcp_output_enable)
+                                                         mcp_output_enable, manage.context.get('application_id'))
         chat_record_id = self.context.get('step_args', {}).get('chat_record_id') if self.context.get('step_args',
                                                                                                      {}).get(
             'chat_record_id') else uuid.uuid7()
@@ -370,7 +380,8 @@ class BaseChatStep(IChatStep):
                          mcp_source="referencing",
                          tool_ids=None,
                          application_ids=None,
-                         mcp_output_enable=True
+                         mcp_output_enable=True,
+                         application_id=None
                          ):
         if paragraph_list is None:
             paragraph_list = []
@@ -390,7 +401,7 @@ class BaseChatStep(IChatStep):
             mcp_result = self._handle_mcp_request(
                 mcp_source, mcp_servers, mcp_tool_ids, tool_ids,
                 application_ids, mcp_output_enable,
-                chat_model, message_list,
+                chat_model, message_list, application_id
             )
             if mcp_result:
                 return mcp_result, True
@@ -424,7 +435,7 @@ class BaseChatStep(IChatStep):
                                                             no_references_setting, problem_text,
                                                             mcp_tool_ids, mcp_servers, mcp_source,
                                                             tool_ids, application_ids,
-                                                            mcp_output_enable)
+                                                            mcp_output_enable, manage.context.get('application_id'))
             if is_ai_chat:
                 request_token = chat_model.get_num_tokens_from_messages(message_list)
                 response_token = chat_model.get_num_tokens(chat_result.content)

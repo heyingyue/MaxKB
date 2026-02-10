@@ -22,13 +22,13 @@
     <div>
       <el-scrollbar>
         <h4 class="title-decoration-1 mb-16 mt-4">
-          {{ $t('workflow.ExecutionRecord') }}
+          {{ $t('common.ExecutionRecord.title') }}
         </h4>
         <el-card class="mb-24" shadow="never" style="--el-card-padding: 12px 16px">
           <el-row :gutter="16" class="lighter">
             <el-col :span="6">
               <p class="color-secondary mb-4">{{ $t('workflow.initiator') }}</p>
-              <p>{{ props.currentContent?.meta.user_name || '-' }}</p>
+              <p>{{ props.currentContent?.meta?.user_name || '-' }}</p>
             </el-col>
             <el-col :span="6">
               <p class="color-secondary mb-4">{{ $t('common.status.label') }}</p>

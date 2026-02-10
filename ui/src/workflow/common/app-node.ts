@@ -79,10 +79,10 @@ class AppNode extends HtmlResize.view {
     }
     if (this.props.model.type === 'knowledge-base-node') {
       let globalFields = []
-      if (this.props.model.properties.user_input_field_list) {
-        globalFields = this.props.model.properties.user_input_field_list.map((item: any) => ({
+      if (this.props.model.properties.config?.globalFields) {
+        globalFields = this.props.model.properties.config.globalFields.map((item: any) => ({
           label: typeof item.label == 'string' ? item.label : item.label.label,
-          value: item.field,
+          value: item.value,
         }))
       }
 
@@ -96,7 +96,7 @@ class AppNode extends HtmlResize.view {
     const children = [...(this.props.model.properties?.config?.fields || [])]
     if (this.props.model.properties.enableException) {
       children.push({
-        label: '异常信息',
+        label: t('workflow.abnormalInformation'),
         value: 'exception_message',
         globeLabel: `{{${this.props.model.properties.stepName}.exception_message}}`,
         globeValue: `{{context['${this.props.model.id}'].exception_message}}`,

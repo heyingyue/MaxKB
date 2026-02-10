@@ -381,7 +381,7 @@ const nodeFields = computed(() => {
       return [
         ...fields,
         {
-          label: '异常信息',
+          label: t('workflow.abnormalInformation'),
           value: 'exception_message',
           globeLabel: `{{${props.nodeModel.properties.stepName}.exception_message}}`,
           globeValue: `{{context['${props.nodeModel.id}'].exception_message}}`,
@@ -453,9 +453,7 @@ onMounted(() => {
       border: 1px solid #f54a45 !important;
     }
   }
-  .arrow-icon {
-    transition: 0.2s;
-  }
+
 }
 :deep(.el-card) {
   overflow: visible;

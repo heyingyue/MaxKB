@@ -315,7 +315,7 @@
                     </div>
                   </div>
                 </el-card>
-
+                <!-- 技能 -->
                 <div class="mb-8 mt-12 flex-between">
                   <span class="mr-4 lighter">
                     {{ $t('views.application.skill') }}
@@ -738,10 +738,14 @@
                     </el-button>
                   </div>
                 </el-form-item>
+
+
               </el-form>
             </el-scrollbar>
           </div>
         </el-col>
+
+        <!-- 预览 -->
         <el-col :span="14" class="p-24 border-l">
           <h4 class="title-decoration-1 mb-16">
             {{ $t('views.application.appTest') }}
@@ -795,7 +799,7 @@ import permissionMap from '@/permission'
 import { EditionConst } from '@/utils/permission/data'
 import { hasPermission } from '@/utils/permission/index'
 import { loadSharedApi } from '@/utils/dynamics-api/shared-api'
-import { resetUrl } from '@/utils/common.ts'
+import { resetUrl } from '@/utils/common'
 import McpServersDialog from '@/views/application/component/McpServersDialog.vue'
 import ToolDialog from '@/views/application/component/ToolDialog.vue'
 import ApplicationDialog from '@/views/application/component/ApplicationDialog.vue'
@@ -817,7 +821,6 @@ const apiType = computed(() => {
 const permissionPrecise = computed(() => {
   return permissionMap['application'][apiType.value]
 })
-
 const toolPermissionPrecise = computed(() => {
   return permissionMap['tool'][apiType.value]
 })
@@ -896,7 +899,6 @@ const applicationForm = ref<ApplicationFormType>({
   tool_ids: [],
   mcp_output_enable: false,
 })
-const themeDetail = ref({})
 
 const rules = reactive<FormRules<ApplicationFormType>>({
   name: [
@@ -911,6 +913,7 @@ const modelOptions = ref<any>(null)
 const knowledgeList = ref<Array<any>>([])
 const sttModelOptions = ref<any>(null)
 const ttsModelOptions = ref<any>(null)
+
 
 function submitPrologueDialog(val: string) {
   applicationForm.value.prologue = val
@@ -1329,5 +1332,4 @@ onMounted(() => {
 .prologue-md-editor {
   height: 150px;
 }
-
 </style>

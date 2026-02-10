@@ -49,9 +49,7 @@
         <template #label>
           <div class="flex-between">
             <div class="flex align-center">
-              <span class="mr-4">{{
-                $t('workflow.nodes.baseNode.fileUpload.label')
-              }}</span>
+              <span class="mr-4">{{ $t('workflow.nodes.baseNode.fileUpload.label') }}</span>
               <el-tooltip
                 effect="dark"
                 :content="$t('workflow.nodes.baseNode.fileUpload.tooltip')"
@@ -156,6 +154,7 @@
           </el-button>
         </div>
       </el-form-item>
+
     </el-form>
     <TTSModeParamSettingDialog ref="TTSModeParamSettingDialogRef" @refresh="refreshTTSForm" />
     <FileUploadSettingDialog
@@ -262,6 +261,7 @@ const validate = () => {
 }
 
 const resource = getResourceDetail()
+
 function getSTTModel() {
   const obj =
     apiType.value === 'systemManage'
@@ -367,5 +367,4 @@ onMounted(() => {
   getSTTModel()
 })
 </script>
-<style lang="scss" scoped>
-</style>
+<style lang="scss" scoped></style>

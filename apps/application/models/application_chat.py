@@ -15,6 +15,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from application.models import Application
 from common.encoder.encoder import SystemEncoder
 from common.mixins.app_model_mixin import AppModelMixin
+from users.models import User
 
 
 class ChatUserType(models.TextChoices):
@@ -43,6 +44,8 @@ class Chat(AppModelMixin):
     trample_num = models.IntegerField(verbose_name="点踩数量", default=0)
     chat_record_count = models.IntegerField(verbose_name="对话次数", default=0)
     mark_sum = models.IntegerField(verbose_name="标记数量", default=0)
+    source = models.JSONField(verbose_name="来源", default=dict)
+    ip_address = models.CharField(max_length=128, verbose_name="ip地址", default='')
 
     class Meta:
         db_table = "application_chat"
@@ -54,12 +57,29 @@ class VoteChoices(models.TextChoices):
     STAR = "0", '赞同'
     TRAMPLE = "1", '反对'
 
+
 class VoteReasonChoices(models.TextChoices):
     ACCURATE = 'accurate', '内容准确'
     COMPLETE = 'complete', '内容完善'
     INACCURATE = 'inaccurate', '内容不准确'
     INCOMPLETE = 'incomplete', '内容不完善'
     OTHER = 'other', '其他'
+
+class ShareLinkType(models.TextChoices):
+    PUBLIC = "PUBLIC", 'public'
+    PRIVATE = "PRIVATE", 'private'
+
+class ChatSourceChoices(models.TextChoices):
+    ONLINE = "ONLINE", "线上使用"
+    API_CALL = "API_CALL", "API调用"
+    ENTERPRISE_WECHAT = "ENTERPRISE_WECHAT", "企业微信"
+    WECHAT_PUBLIC_ACCOUNT = "WECHAT_PUBLIC_ACCOUNT", "微信公众号"
+    LARK = "LARK", "飞书"
+    DINGTALK = "DINGTALK", "钉钉"
+    ENTERPRISE_WECHAT_ROBOT = "ENTERPRISE_WECHAT_ROBOT", "企业微信机器人"
+    TRIGGER = "TRIGGER", "触发器"
+    SLACK = "SLACK", "Slack"
+
 
 class ChatRecord(AppModelMixin):
     """
@@ -69,7 +89,8 @@ class ChatRecord(AppModelMixin):
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     vote_status = models.CharField(verbose_name='投票', max_length=10, choices=VoteChoices.choices,
                                    default=VoteChoices.UN_VOTE)
-    vote_reason =models.CharField(verbose_name='投票原因', max_length=50,choices=VoteReasonChoices.choices, null=True, blank=True)
+    vote_reason = models.CharField(verbose_name='投票原因', max_length=50, choices=VoteReasonChoices.choices, null=True,
+                                   blank=True)
     vote_other_content = models.CharField(verbose_name='其他原因', max_length=1024, default='')
     problem_text = models.CharField(max_length=10240, verbose_name="问题")
     answer_text = models.CharField(max_length=40960, verbose_name="答案")
@@ -85,6 +106,8 @@ class ChatRecord(AppModelMixin):
                                            , default=list)
     run_time = models.FloatField(verbose_name="运行时长", default=0)
     index = models.IntegerField(verbose_name="对话下标")
+    source = models.JSONField(verbose_name="来源", default=dict)
+    ip_address = models.CharField(max_length=128, verbose_name="ip地址", default='')
 
     def get_human_message(self):
         if 'problem_padding' in self.details:
@@ -119,3 +142,14 @@ class ApplicationChatUserStats(AppModelMixin):
         indexes = [
             models.Index(fields=['application_id', 'chat_user_id']),
         ]
+
+class ChatShareLink(AppModelMixin):
+    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid7, editable=False, verbose_name="主键id")
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    application = models.ForeignKey(Application,on_delete=models.CASCADE)
+    share_type = models.CharField(max_length=20, choices=ShareLinkType.choices, default=ShareLinkType.PUBLIC)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, db_constraint=False, blank=True, null=True)
+    chat_record_ids = ArrayField(base_field=models.UUIDField(max_length=128))
+
+    class Meta:
+        db_table = "application_chat_share_link"

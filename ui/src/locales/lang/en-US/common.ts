@@ -66,6 +66,7 @@ export default {
   },
   status: {
     label: 'Status',
+    enable: 'Enable',
     disable: 'Disable',
     enabled: 'Enabled',
     disabled: 'Disabled',
@@ -143,4 +144,9 @@ export default {
     next: 'Next',
   },
   use: 'Use',
+  ExecutionRecord: {
+    title: 'Execution Record',
+    subTitle: 'View Execution Record',
+  },
+  sourceType: 'Source type',
 }
