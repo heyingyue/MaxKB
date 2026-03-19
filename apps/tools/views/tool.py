@@ -569,3 +569,30 @@ class ToolView(APIView):
                 'workspace_id': workspace_id,
                 'record_id': record_id,
             }).one())
+
+    class UploadSkillFile(APIView):
+        authentication_classes = [TokenAuth]
+        parser_classes = [MultiPartParser]
+
+        @extend_schema(
+            methods=['PUT'],
+            description=_("Upload skill file"),
+            summary=_("Upload skill file"),
+            operation_id=_("Upload skill file"),  # type: ignore
+            parameters=AddInternalToolAPI.get_parameters(),
+            request=AddInternalToolAPI.get_request(),
+            responses=AddInternalToolAPI.get_response(),
+            tags=[_("Tool")]  # type: ignore
+        )
+        @has_permissions(
+            PermissionConstants.TOOL_CREATE.get_workspace_permission(),
+            PermissionConstants.TOOL_CREATE.get_workspace_permission_workspace_manage_role(),
+            RoleConstants.WORKSPACE_MANAGE.get_workspace_role(), RoleConstants.USER.get_workspace_role()
+        )
+        def put(self, request: Request, workspace_id: str):
+            return result.success(ToolSerializer.UploadSkillFile(data={
+                'workspace_id': workspace_id,
+                'user_id': request.user.id,
+                'file': request.FILES.get('file'),
+            }).upload())
+

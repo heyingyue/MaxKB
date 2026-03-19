@@ -114,7 +114,7 @@
             <el-table-column type="selection" width="55" :reserve-selection="true" />
             <el-table-column
               prop="name"
-              :label="$t('common.name')"
+              :label="multipleSelection.length === 0 ? $t('common.name') : `${$t('common.selected')} ${multipleSelection.length} ${$t('views.document.items') }`"
               show-overflow-tooltip
               width="220"
             >
@@ -168,10 +168,11 @@
                 <el-popover
                   placement="top-start"
                   :popper-style="{ width: 'auto', maxWidth: '300px' }"
+                  :persistent="false"
                 >
                   <template #reference>
                     <div class="flex">
-                      <el-tag
+                      <el-tag size="small"
                         class="info-tag mr-8 cursor"
                         v-if="
                           row.trigger_task.filter((item: any) => item.type === 'APPLICATION').length
@@ -182,7 +183,7 @@
                           row.trigger_task.filter((item: any) => item.type === 'APPLICATION').length
                         }}
                       </el-tag>
-                      <el-tag
+                      <el-tag size="small"
                         class="info-tag cursor"
                         v-if="row.trigger_task.filter((item: any) => item.type === 'TOOL').length"
                       >

@@ -32,7 +32,7 @@
               }}</el-text>
               <div class="flex-wrap" style="gap: 12px; padding: 12px">
                 <template v-for="(item, index) in node.list" :key="index">
-                  <el-popover placement="right" :width="280" :show-after="500">
+                  <el-popover placement="right" :width="280" :show-after="500" :persistent="false">
                     <template #reference>
                       <div
                         class="list-item flex align-center border border-r-6 p-8-12 cursor"
@@ -44,6 +44,7 @@
                           :is="iconComponent(`${item.type}-icon`)"
                           class="mr-8"
                           :size="20"
+                          style="--el-avatar-border-radius:6px"
                         />
                         <div class="lighter">{{ item.label }}</div>
                       </div>
@@ -249,7 +250,12 @@ const toolTreeData = ref<any[]>([])
 const toolList = ref<any[]>([])
 
 async function getToolFolder() {
-  const res: any = await folder.asyncGetFolder(SourceTypeEnum.TOOL, {source_id: props.id}, apiType.value, loading)
+  const res: any = await folder.asyncGetFolder(
+    SourceTypeEnum.TOOL,
+    { source_id: props.id },
+    apiType.value,
+    loading,
+  )
   toolTreeData.value = res.data
   folder.setCurrentFolder(res.data?.[0] || {})
 }
@@ -271,10 +277,12 @@ const applicationTreeData = ref<any[]>([])
 const applicationList = ref<any[]>([])
 
 function getApplicationFolder() {
-  folder.asyncGetFolder(SourceTypeEnum.APPLICATION, {source_id: props.id}, apiType.value, loading).then((res: any) => {
-    applicationTreeData.value = res.data
-    folder.setCurrentFolder(res.data?.[0] || {})
-  })
+  folder
+    .asyncGetFolder(SourceTypeEnum.APPLICATION, { source_id: props.id }, apiType.value, loading)
+    .then((res: any) => {
+      applicationTreeData.value = res.data
+      folder.setCurrentFolder(res.data?.[0] || {})
+    })
 }
 
 async function getApplicationList() {

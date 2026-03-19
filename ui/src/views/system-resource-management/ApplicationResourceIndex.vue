@@ -74,10 +74,10 @@
 
         <el-table-column prop="tool_type" :label="$t('common.type')" width="100">
           <template #default="scope">
-            <el-tag class="warning-tag" v-if="isWorkFlow(scope.row.type)">
+            <el-tag size="small" class="warning-tag" v-if="isWorkFlow(scope.row.type)">
               {{ $t('views.application.senior') }}
             </el-tag>
-            <el-tag class="blue-tag" v-else>
+            <el-tag size="small" class="blue-tag" v-else>
               {{ $t('views.application.simple') }}
             </el-tag>
           </template>
@@ -91,7 +91,7 @@
           <template #header>
             <div>
               <span>{{ $t('common.status.label') }}</span>
-              <el-popover :width="100" trigger="click" :visible="statusVisible">
+              <el-popover :width="100" trigger="click" :visible="statusVisible" :persistent="false">
                 <template #reference>
                   <el-button
                     style="margin-top: -2px"
@@ -159,7 +159,12 @@
           <template #header>
             <div>
               <span>{{ $t('views.workspace.title') }}</span>
-              <el-popover :width="200" trigger="click" :visible="workspaceVisible">
+              <el-popover
+                :width="200"
+                trigger="click"
+                :visible="workspaceVisible"
+                :persistent="false"
+              >
                 <template #reference>
                   <el-button
                     style="margin-top: -2px"

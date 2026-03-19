@@ -39,6 +39,7 @@ export default {
     // errorMessage4: '每次最多上传50个文件',
     template: '模板',
     download: '下载',
+    fileLimitSizeTip: '大小不超过',
   },
 
   fileType: {
@@ -98,6 +99,11 @@ export default {
     key: '标签',
     value: '标签值',
     addTag: '添加标签',
+    noTag: '无标签',
+    relate: '关联',
+    unrelate: '取消关联',
+    relatedDoc: '已关联文档',
+    unrelatedDoc: '未关联文档',
     addValue: '添加标签值',
     setting: '标签设置',
     create: '创建标签',

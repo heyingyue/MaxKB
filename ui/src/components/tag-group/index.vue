@@ -7,6 +7,7 @@
       placement="bottom"
       :disabled="tooltipDisabled"
       :popper-style="{ width: 'auto', maxWidth: '300px' }"
+      :persistent="false"
     >
       <template #reference>
         <el-tag :size="props.size" class="info-tag ml-4 cursor" v-if="props.tags?.length > 1">
@@ -28,7 +29,6 @@
 </template>
 <script setup lang="ts">
 import { i18n_name } from '@/utils/common'
-import type { max } from 'moment'
 
 const props = defineProps<{
   tags: string[]
@@ -52,7 +52,7 @@ const props = defineProps<{
 }
 .el-popper.is-customized {
   background: #ffffff;
-  box-shadow: 0px 4px 8px 0px rgba(31, 35, 41, 0.1);
+  box-shadow: 0px 4px 8px 0px rgba(var(--el-text-color-primary-rgb), 0.1);
 }
 
 .el-popper.is-customized .el-popper__arrow::before {

@@ -2,7 +2,7 @@ export default {
   uploadDocument: 'Upload Document',
   importDocument: 'Import Document',
   syncDocument: 'Sync Document',
-  items: 'Items',
+  items: '',
   migrateDocument: 'Migrate to',
   setting: {
     migration: 'Move',
@@ -28,6 +28,7 @@ export default {
     fileLimitSizeTip1: 'each file must not exceed',
     toImportDocConfirm:
       'The workflow of the current knowledge base is not published, and documents cannot be imported. Please publish the workflow first.',
+     fileLimitSizeTip2: 'size must not exceed',
   },
   upload: {
     selectFile: 'Select File',
@@ -103,6 +104,11 @@ export default {
     key: 'Tag',
     value: 'Value',
     addTag: 'Add Tag',
+    noTag: 'No Tag',
+    relate: 'Link',
+    unrelate: 'Unlink',
+    relatedDoc: 'Linked documents',
+    unrelatedDoc: 'Unlinked documents',
     setting: 'Tag Settings',
     create: 'Create Tag',
     createValue: 'Create Tag Value',

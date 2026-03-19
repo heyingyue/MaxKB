@@ -13,7 +13,6 @@
             @change="search_type_change"
           >
             <el-option :label="$t('common.creator')" value="create_user" />
-
             <el-option :label="$t('common.name')" value="name" />
           </el-select>
           <el-input
@@ -62,13 +61,23 @@
                   </div>
                 </div>
               </el-dropdown-item>
+              <el-dropdown-item @click="openCreateSkillDialog()">
+                <div class="flex align-center">
+                  <el-avatar shape="square" :size="32">
+                    <img src="@/assets/tool/icon_skill.svg" style="width: 58%" alt="" />
+                  </el-avatar>
+                  <div class="pre-wrap ml-8">
+                    <div class="lighter">{{ $t('views.tool.skill.createSkillTool') }}</div>
+                  </div>
+                </div>
+              </el-dropdown-item>
               <el-dropdown-item @click="openCreateMcpDialog()">
                 <div class="flex align-center">
                   <el-avatar shape="square" :size="32">
                     <img src="@/assets/tool/icon_mcp.svg" style="width: 75%" alt="" />
                   </el-avatar>
                   <div class="pre-wrap ml-8">
-                    <div class="lighter">{{ $t('views.tool.createMcpTool') }}</div>
+                    <div class="lighter">{{ $t('views.tool.mcp.createMcpTool') }}</div>
                   </div>
                 </div>
               </el-dropdown-item>
@@ -136,33 +145,6 @@
       >
         <el-row v-if="tool.toolList.length > 0" :gutter="15" class="w-full">
           <template v-for="(item, index) in tool.toolList" :key="index">
-            <!-- <el-col
-              v-if="item.resource_type === 'folder'"
-              :xs="24"
-              :sm="12"
-              :md="12"
-              :lg="8"
-              :xl="6"
-              class="mb-16"
-            >
-              <CardBox
-                :title="item.name"
-                :description="item.desc || $t('components.noDesc')"
-                class="cursor"
-                @click="clickFolder(item)"
-              >
-                <template #icon>
-                  <el-avatar shape="square" :size="32" style="background: none">
-                    <AppIcon iconName="app-folder" style="font-size: 32px"></AppIcon>
-                  </el-avatar>
-                </template>
-                <template #subTitle>
-                  <el-text class="color-secondary lighter" size="small">
-                    {{ $t('common.creator') }}: {{ i18n_name(item.nick_name) }}
-                  </el-text>
-                </template>
-              </CardBox>
-            </el-col> -->
             <el-col :xs="24" :sm="12" :md="12" :lg="8" :xl="6" class="mb-16">
               <CardBox
                 :title="item.name"
@@ -182,18 +164,32 @@
                     <span class="ellipsis-1" :title="item.name">
                       {{ item.name }}
                     </span>
-                    <el-tag v-if="item.version" class="ml-4" type="info" effect="plain">
+                    <el-tag
+                      v-if="item.version"
+                      class="ml-4"
+                      size="small"
+                      type="info"
+                      effect="plain"
+                    >
                       {{ item.version }}
                     </el-tag>
                   </div>
                 </template>
                 <template #subTitle>
-                  <el-text class="color-secondary lighter" size="small">
-                    {{ $t('common.creator') }}: {{ i18n_name(item.nick_name) }}
+                  <el-text class="color-secondary lighter flex align-center" size="small">
+                    <span
+                      :title="i18n_name(item.nick_name)"
+                      class="ellipsis"
+                      style="max-width: 90px"
+                    >
+                      {{ i18n_name(item.nick_name) }}
+                    </span>
+                    <span class="ml-4 mr-4"> {{ $t('common.createdIn') }}</span>
+                    <span> {{ dateFormat(item.create_time) }}</span>
                   </el-text>
                 </template>
                 <template #tag="{ hoverShow }">
-                  <el-tag v-if="isShared" type="info" class="info-tag">
+                  <el-tag v-if="isShared" size="small" type="info" class="info-tag">
                     {{ t('views.shared.title') }}
                   </el-tag>
                   <el-tooltip effect="dark" :content="$t('views.tool.updatedVersion')">
@@ -250,7 +246,7 @@
                             @click.stop="showMcpConfig(item)"
                           >
                             <AppIcon iconName="app-operate-log" class="color-secondary"></AppIcon>
-                            {{ $t('views.tool.mcpConfig') }}
+                            {{ $t('views.tool.mcp.mcpConfig') }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             v-if="item.template_id && permissionPrecise.edit(item.id)"
@@ -371,6 +367,11 @@
   <InitParamDrawer ref="InitParamDrawerRef" @refresh="refresh" />
   <ToolFormDrawer ref="ToolFormDrawerRef" @refresh="refresh" :title="ToolDrawertitle" />
   <McpToolFormDrawer ref="McpToolFormDrawerRef" @refresh="refresh" :title="McpToolDrawertitle" />
+  <SkillToolFormDrawer
+    ref="SkillToolFormDrawerRef"
+    @refresh="refresh"
+    :title="SkillToolDrawertitle"
+  />
   <DataSourceToolFormDrawer
     ref="DataSourceToolFormDrawerRef"
     @refresh="refresh"
@@ -411,6 +412,7 @@ import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import InitParamDrawer from '@/views/tool/component/InitParamDrawer.vue'
 import ToolFormDrawer from '@/views/tool/ToolFormDrawer.vue'
 import McpToolFormDrawer from '@/views/tool/McpToolFormDrawer.vue'
+import SkillToolFormDrawer from '@/views/tool/SkillToolFormDrawer.vue'
 import DataSourceToolFormDrawer from '@/views/tool/DataSourceToolFormDrawer.vue'
 import CreateFolderDialog from '@/components/folder-tree/CreateFolderDialog.vue'
 import AuthorizedWorkspace from '@/views/system-shared/AuthorizedWorkspaceDialog.vue'
@@ -420,20 +422,20 @@ import MoveToDialog from '@/components/folder-tree/MoveToDialog.vue'
 import ResourceAuthorizationDrawer from '@/components/resource-authorization-drawer/index.vue'
 import McpToolConfigDialog from '@/views/tool/component/McpToolConfigDialog.vue'
 import ResourceTriggerDrawer from '@/views/trigger/ResourceTriggerDrawer.vue'
-import { resetUrl } from '@/utils/common'
+import ToolStoreDescDrawer from '@/views/tool/component/ToolStoreDescDrawer.vue'
+import ResourceMappingDrawer from '@/components/resource_mapping/index.vue'
+import ToolRecordDrawer from '@/views/tool/execution-record/TriggerRecordDrawer.vue'
+import ToolStoreApi from '@/api/tool/store.ts'
+import { resetUrl, i18n_name } from '@/utils/common'
 import { MsgSuccess, MsgConfirm, MsgError } from '@/utils/message'
 import { SourceTypeEnum } from '@/enums/common'
+import { dateFormat } from '@/utils/time'
 import { loadSharedApi } from '@/utils/dynamics-api/shared-api'
 import permissionMap from '@/permission'
 import useStore from '@/stores'
 import { t } from '@/locales'
-import { i18n_name } from '@/utils/common'
-import ToolStoreApi from '@/api/tool/store.ts'
-import ToolStoreDescDrawer from '@/views/tool/component/ToolStoreDescDrawer.vue'
 
 import bus from '@/bus'
-import ResourceMappingDrawer from '@/components/resource_mapping/index.vue'
-import ToolRecordDrawer from '@/views/tool/execution-record/TriggerRecordDrawer.vue'
 
 const route = useRoute()
 
@@ -519,9 +521,11 @@ const search_type_change = () => {
 }
 const ToolFormDrawerRef = ref()
 const McpToolFormDrawerRef = ref()
+const SkillToolFormDrawerRef = ref()
 const DataSourceToolFormDrawerRef = ref()
 const ToolDrawertitle = ref('')
 const McpToolDrawertitle = ref('')
+const SkillToolDrawertitle = ref('')
 const DataSourceToolDrawertitle = ref('')
 
 const MoveToDialogRef = ref()
@@ -567,6 +571,13 @@ function openCreateDialog(data?: any) {
     openCreateDataSourceDialog(data)
     return
   }
+  // 技能
+  if (data?.tool_type === 'SKILL') {
+    bus.emit('select_node', data.folder_id)
+    openCreateSkillDialog(data)
+    return
+  }
+
   // 有版本号的展示readme，是商店更新过来的
   if (data?.version) {
     let readMe = ''
@@ -612,7 +623,9 @@ function openCreateMcpDialog(data?: any) {
   if (isShared.value) {
     return
   }
-  McpToolDrawertitle.value = data ? t('views.tool.editMcpTool') : t('views.tool.createMcpTool')
+  McpToolDrawertitle.value = data
+    ? t('views.tool.mcp.editMcpTool')
+    : t('views.tool.mcp.createMcpTool')
   if (data) {
     loadSharedApi({ type: 'tool', systemType: apiType.value })
       .getToolById(data?.id, loading)
@@ -621,6 +634,41 @@ function openCreateMcpDialog(data?: any) {
       })
   } else {
     McpToolFormDrawerRef.value.open(data)
+  }
+}
+
+function openCreateSkillDialog(data?: any) {
+  // 有版本号的展示readme，是商店更新过来的
+  if (data?.version) {
+    let readMe = ''
+    storeTools.value
+      .filter((item) => item.id === data.template_id)
+      .forEach((item) => {
+        readMe = item.readMe
+      })
+    bus.emit('select_node', data.folder_id)
+    toolStoreDescDrawerRef.value?.open(readMe, data)
+    return
+  }
+  // 有template_id的不允许编辑，是模板转换来的
+  if (data?.template_id) {
+    return
+  }
+  // 共享过来的工具不让编辑
+  if (isShared.value) {
+    return
+  }
+  SkillToolDrawertitle.value = data
+    ? t('views.tool.skill.editSkillTool')
+    : t('views.tool.skill.createSkillTool')
+  if (data) {
+    loadSharedApi({ type: 'tool', systemType: apiType.value })
+      .getToolById(data?.id, loading)
+      .then((res: any) => {
+        SkillToolFormDrawerRef.value.open(res.data)
+      })
+  } else {
+    SkillToolFormDrawerRef.value.open(data)
   }
 }
 
@@ -719,6 +767,12 @@ async function copyTool(row: any) {
     await copyDataSource(row)
     return
   }
+  // 技能
+  if (row?.tool_type === 'SKILL') {
+    bus.emit('select_node', row.folder_id)
+    await copySkillTool(row)
+    return
+  }
   ToolDrawertitle.value = t('views.tool.copyTool')
   const res = await loadSharedApi({ type: 'tool', systemType: apiType.value }).getToolById(
     row.id,
@@ -731,7 +785,7 @@ async function copyTool(row: any) {
 }
 
 async function copyMcpTool(row: any) {
-  McpToolDrawertitle.value = t('views.tool.copyMcpTool')
+  McpToolDrawertitle.value = t('views.tool.mcp.copyMcpTool')
   const res = await loadSharedApi({ type: 'tool', systemType: apiType.value }).getToolById(
     row.id,
     changeStateloading,
@@ -752,6 +806,18 @@ async function copyDataSource(row: any) {
   delete obj['id']
   obj['name'] = obj['name'] + `  ${t('common.copyTitle')}`
   DataSourceToolFormDrawerRef.value.open(obj)
+}
+
+async function copySkillTool(row: any) {
+  SkillToolDrawertitle.value = t('views.tool.skill.copySkillTool')
+  const res = await loadSharedApi({ type: 'tool', systemType: apiType.value }).getToolById(
+    row.id,
+    changeStateloading,
+  )
+  const obj = cloneDeep(res.data)
+  delete obj['id']
+  obj['name'] = obj['name'] + `  ${t('common.copyTitle')}`
+  SkillToolFormDrawerRef.value.open(obj)
 }
 
 function exportTool(row: any) {
