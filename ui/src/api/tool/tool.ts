@@ -1,5 +1,5 @@
 import { Result } from '@/request/Result'
-import { get, post, del, put, exportFile, postStream } from '@/request/index'
+import { get, post, del, put, exportFile, postStream, download } from '@/request/index'
 import { type Ref } from 'vue'
 import type { pageRequest } from '@/api/type/common'
 import type { AddInternalToolParam, toolData } from '@/api/type/tool'
@@ -195,6 +195,14 @@ const uploadSkillFile: (data: toolData, loading?: Ref<boolean>) => Promise<Resul
 ) => {
   return put(`${prefix.value}/upload_skill_file`, data, undefined, loading)
 }
+
+const downloadSkillFile: (tool_id: string, loading?: Ref<boolean>) => Promise<Result<any>> = (
+  tool_id,
+  loading,
+) => {
+  return download(`${prefix.value}/${tool_id}/download_skill_file`, 'GET', undefined, undefined, loading)
+}
+
 /**
  * 保存工具工作流
  * @param tool_id
@@ -229,21 +237,7 @@ const exportKnowledgeWorkflow = (
     loading,
   )
 }
-/**
- * 导出知识库工作流
- * @param knowledge_id
- * @param knowledge_name
- * @param loading
- * @returns
- */
-const exportToolWorkflow = (tool_id: string, tool_name: string, loading?: Ref<boolean>) => {
-  return exportFile(
-    tool_name + '.tool',
-    `${prefix.value}/${tool_id}/workflow/export`,
-    undefined,
-    loading,
-  )
-}
+
 /**
  * 导入工具工作流
  */
@@ -299,6 +293,49 @@ const debugToolWorkflow: (tool_id: string, data: any) => Promise<any> = (tool_id
   const p = (window.MaxKB?.prefix ? window.MaxKB?.prefix : '/admin') + '/api'
   return postStream(`${p}${prefix.value}/${tool_id}/debug`, data)
 }
+
+const generateCode: (data: any) => Promise<Result<any>> = (data: any) => {
+  const p = (window.MaxKB?.prefix ? window.MaxKB?.prefix : '/admin') + '/api'
+  return postStream(`${p}${prefix.value}/generate_code`, data)
+}
+/**
+ * mcp 节点
+ */
+const getMcpTools: (
+  tool_id: string,
+  mcp_servers: any,
+  loading?: Ref<boolean>,
+) => Promise<Result<any>> = (tool_id, mcp_servers, loading) => {
+  return post(`${prefix.value}/${tool_id}/mcp_tools`, { mcp_servers }, {}, loading)
+}
+
+/**
+ * 批量删除工具
+ * @param 参数
+ * {
+  "id_list": [String]
+}
+ */
+const delMulTool: (data: any, loading?: Ref<boolean>) => Promise<Result<boolean>> = (
+  data,
+  loading,
+) => {
+  return put(`${prefix.value}/batch_delete`, { id_list: data }, undefined, loading)
+}
+/**
+ * 批量删除工具
+ * @param 参数
+ * {
+  "id_list": [String]
+  "folder_id": string
+}
+ */
+const putMulMoveTool: (data: any, loading?: Ref<boolean>) => Promise<Result<boolean>> = (
+  data,
+  loading,
+) => {
+  return put(`${prefix.value}/batch_move`, data, undefined, loading)
+}
 export default {
   getToolList,
   getAllToolList,
@@ -319,11 +356,15 @@ export default {
   pageToolRecord,
   getToolRecordDetail,
   uploadSkillFile,
+  downloadSkillFile,
   putToolWorkflow,
   importToolWorkflow,
   listToolWorkflowVersion,
   updateToolWorkflowVersion,
   publish,
-  exportToolWorkflow,
   debugToolWorkflow,
+  generateCode,
+  getMcpTools,
+  delMulTool,
+  putMulMoveTool
 }

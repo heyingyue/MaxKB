@@ -44,28 +44,26 @@
             </div>
           </template>
           <div class="flex-between w-full" v-if="chat_data.model_id_type !== 'reference'">
-            <div>
-              <ModelSelect
-                @change="model_change"
-                @wheel="wheel"
-                :teleported="false"
-                v-model="chat_data.model_id"
-                :placeholder="$t('views.application.form.aiModel.placeholder')"
-                :options="modelOptions"
-                @submitModel="getSelectModel"
-                showFooter
-                :model-type="'LLM'"
-              ></ModelSelect>
-            </div>
+            <ModelSelect
+              @change="model_change"
+              @wheel="wheel"
+              :teleported="false"
+              v-model="chat_data.model_id"
+              :placeholder="$t('views.application.form.aiModel.placeholder')"
+              :options="modelOptions"
+              @submitModel="getSelectModel"
+              showFooter
+              :model-type="'LLM'"
+            ></ModelSelect>
             <div class="ml-8">
               <el-button
                 :disabled="!chat_data.model_id"
-                type="primary"
-                link
                 @click="openAIParamSettingDialog(chat_data.model_id)"
                 @refreshForm="refreshParam"
               >
-                <AppIcon iconName="app-setting"></AppIcon>
+                <el-icon>
+                  <Operation />
+                </el-icon>
               </el-button>
             </div>
           </div>
@@ -144,7 +142,14 @@
           />
         </el-form-item>
         <el-form-item
-          v-if="[WorkflowMode.Application, WorkflowMode.ApplicationLoop].includes(workflowMode)"
+          v-if="
+            [
+              WorkflowMode.Application,
+              WorkflowMode.ApplicationLoop,
+              WorkflowMode.Tool,
+              WorkflowMode.ToolLoop,
+            ].includes(workflowMode)
+          "
         >
           <template #label>
             <div class="flex-between">
@@ -165,7 +170,60 @@
             :step-strictly="true"
           />
         </el-form-item>
-
+        <el-form-item
+          :rules="{
+            type: 'array',
+            required: true,
+            message: $t('workflow.nodes.imageUnderstandNode.image.requiredMessage'),
+            trigger: 'change',
+          }"
+        >
+          <div class="flex align-center">
+            <div>
+              <span>{{ $t('workflow.nodes.imageUnderstandNode.image.label') }} </span>
+            </div>
+            <el-tooltip effect="dark" placement="right">
+              <template #content>
+                <div style="white-space: pre-wrap; font-family: monospace">{{ fileTooltip }}</div>
+              </template>
+              <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
+            </el-tooltip>
+          </div>
+          <NodeCascader
+            ref="nodeCascaderRef"
+            :nodeModel="nodeModel"
+            class="w-full"
+            :placeholder="$t('workflow.nodes.imageUnderstandNode.image.requiredMessage')"
+            v-model="chat_data.image_list"
+          />
+        </el-form-item>
+        <el-form-item
+          :rules="{
+            type: 'array',
+            required: false,
+            message: $t('workflow.nodes.videoUnderstandNode.video.requiredMessage'),
+            trigger: 'change',
+          }"
+        >
+          <div class="flex align-center">
+            <div>
+              <span>{{ $t('workflow.nodes.videoUnderstandNode.video.label') }} </span>
+            </div>
+            <el-tooltip effect="dark" placement="right">
+              <template #content>
+                <div style="white-space: pre-wrap; font-family: monospace">{{ fileTooltip }}</div>
+              </template>
+              <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
+            </el-tooltip>
+          </div>
+          <NodeCascader
+            ref="nodeCascaderRef"
+            :nodeModel="nodeModel"
+            class="w-full"
+            :placeholder="$t('workflow.nodes.videoUnderstandNode.video.requiredMessage')"
+            v-model="chat_data.video_list"
+          />
+        </el-form-item>
         <div class="mb-8 mt-12 flex-between">
           <span class="mr-4 lighter">
             {{ $t('views.tool.skill.title') }}
@@ -185,9 +243,20 @@
                 <el-icon class="mr-8 arrow-icon" :class="collapseData.MCP ? 'rotate-90' : ''">
                   <CaretRight /> </el-icon
                 >MCP
-                <span class="ml-4" v-if="chat_data.mcp_tool_ids?.length">
-                  ({{ chat_data.mcp_tool_ids?.length }})</span
+                <span
+                  class="ml-4"
+                  v-if="
+                    chat_data.mcp_tool_ids?.filter((id: any) =>
+                      relatedObject(mcpToolSelectOptions, id, 'id'),
+                    )?.length
+                  "
                 >
+                  ({{
+                    chat_data.mcp_tool_ids?.filter((id: any) =>
+                      relatedObject(mcpToolSelectOptions, id, 'id'),
+                    )?.length
+                  }})
+                </span>
               </div>
               <div class="flex">
                 <el-button
@@ -263,9 +332,20 @@
                   <CaretRight />
                 </el-icon>
                 {{ $t('views.tool.title') }}
-                <span class="ml-4" v-if="chat_data.tool_ids?.length">
-                  ({{ chat_data.tool_ids?.length }})</span
+                <span
+                  class="ml-4"
+                  v-if="
+                    chat_data.tool_ids?.filter((id: any) =>
+                      relatedObject(toolSelectOptions, id, 'id'),
+                    )?.length
+                  "
                 >
+                  ({{
+                    chat_data.tool_ids?.filter((id: any) =>
+                      relatedObject(toolSelectOptions, id, 'id'),
+                    )?.length
+                  }})
+                </span>
               </div>
               <div class="flex">
                 <el-button type="primary" link @click="openToolDialog" @refreshForm="refreshParam">
@@ -275,7 +355,11 @@
             </div>
             <div class="w-full mb-16" v-if="chat_data.tool_ids?.length > 0 && collapseData.tool">
               <template v-for="(item, index) in chat_data.tool_ids" :key="index">
-                <div class="flex-between border border-r-6 white-bg mb-4" style="padding: 5px 8px">
+                <div
+                  class="flex-between border border-r-6 white-bg mb-4"
+                  style="padding: 5px 8px"
+                  v-if="relatedObject(toolSelectOptions, item, 'id')"
+                >
                   <div class="flex align-center" style="line-height: 20px">
                     <el-avatar
                       v-if="relatedObject(toolSelectOptions, item, 'id')?.icon"
@@ -289,7 +373,12 @@
                         alt=""
                       />
                     </el-avatar>
-                    <ToolIcon v-else class="mr-8" :size="20" />
+                    <ToolIcon
+                      v-else
+                      class="mr-8"
+                      :size="20"
+                      :type="resetUrl(relatedObject(toolSelectOptions, item, 'id')?.tool_type)"
+                    />
 
                     <div
                       class="ellipsis"
@@ -314,9 +403,20 @@
                   <CaretRight />
                 </el-icon>
                 Skills
-                <span class="ml-4" v-if="chat_data.skill_tool_ids?.length">
-                  ({{ chat_data.skill_tool_ids?.length }})</span
+                <span
+                  class="ml-4"
+                  v-if="
+                    chat_data.skill_tool_ids?.filter((id: any) =>
+                      relatedObject(skillToolSelectOptions, id, 'id'),
+                    )?.length
+                  "
                 >
+                  ({{
+                    chat_data.skill_tool_ids?.filter((id: any) =>
+                      relatedObject(skillToolSelectOptions, id, 'id'),
+                    )?.length
+                  }})
+                </span>
               </div>
               <div class="flex">
                 <el-button
@@ -449,7 +549,14 @@
         </el-form-item>
         <el-form-item
           @click.prevent
-          v-if="[WorkflowMode.Application, WorkflowMode.ApplicationLoop].includes(workflowMode)"
+          v-if="
+            [
+              WorkflowMode.Application,
+              WorkflowMode.ApplicationLoop,
+              WorkflowMode.Tool,
+              WorkflowMode.ToolLoop,
+            ].includes(workflowMode)
+          "
         >
           <template #label>
             <div class="flex align-center">
@@ -476,7 +583,7 @@
       @refresh="submitReasoningDialog"
     />
     <McpServersDialog ref="mcpServersDialogRef" @refresh="submitMcpServersDialog" />
-    <ToolDialog ref="toolDialogRef" @refresh="submitToolDialog" tool_type="CUSTOM" />
+    <ToolDialog ref="toolDialogRef" @refresh="submitToolDialog" tool_type="CUSTOM,WORKFLOW" />
     <ToolDialog ref="skillToolDialogRef" @refresh="submitSkillToolDialog" tool_type="SKILL" />
     <ApplicationDialog ref="applicationDialogRef" @refresh="submitApplicationDialog" />
   </NodeContainer>
@@ -501,6 +608,7 @@ import { resetUrl } from '@/utils/common'
 import { relatedObject } from '@/utils/array.ts'
 import { WorkflowMode } from '@/enums/application'
 import ApplicationDialog from '@/views/application/component/ApplicationDialog.vue'
+import { fileTooltip } from '@/workflow/common/data.ts'
 const workflowMode = (inject('workflowMode') as WorkflowMode) || WorkflowMode.Application
 const getResourceDetail = inject('getResourceDetail') as any
 const route = useRoute()
@@ -712,12 +820,12 @@ function getToolSelectOptions() {
     apiType.value === 'systemManage'
       ? {
           scope: 'WORKSPACE',
-          tool_type: 'CUSTOM',
+          tool_type_list: ['CUSTOM', 'WORKFLOW'],
           workspace_id: resource.value?.workspace_id,
         }
       : {
           scope: 'WORKSPACE',
-          tool_type: 'CUSTOM',
+          tool_type_list: ['CUSTOM', 'WORKFLOW'],
         }
 
   loadSharedApi({ type: 'tool', systemType: apiType.value })
@@ -811,6 +919,18 @@ function getSkillToolSelectOptions() {
       )
     })
 }
+
+function refreshLongTermConfig() {
+  const form_data = props.nodeModel.graphModel.nodes
+    .filter((v: any) => v.id === 'base-node')
+    .filter((v: any) => v.properties.node_data.long_term_enable)
+    .filter((v: any) => v)
+
+  if (form_data.length > 0) {
+    chat_data.value.system = chat_data.value.system
+  }
+}
+props.nodeModel.graphModel.eventCenter.on('refreshLongTermConfig', refreshLongTermConfig)
 
 onMounted(() => {
   getSelectModel()

@@ -31,11 +31,8 @@
                   v-model="form_data.search_scope_type"
                   style="width: 85px"
                 >
-                  <el-option
-                    :label="$t('workflow.variable.Referencing')"
-                    value="referencing"
-                  />
-                  <el-option :label="$t('common.custom')" value="custom" />
+                  <el-option :label="$t('workflow.variable.Referencing')" value="referencing"/>
+                  <el-option :label="$t('common.custom')" value="custom"/>
                 </el-select>
               </span>
             </div>
@@ -59,7 +56,7 @@
                 </div>
                 <el-button text @click="removeKnowledge(item)">
                   <el-icon>
-                    <Close />
+                    <Close/>
                   </el-icon>
                 </el-button>
               </div>
@@ -75,29 +72,38 @@
               }"
             >
               <template #label>
-                <div class="flex-between">
+                <div class="flex-between align-center ">
+                  <div>
                   <span>
                     {{ $t('workflow.nodes.searchDocumentNode.select_variable') }}
-                    <span class="color-danger">*</span></span
-                  >
-                  <span>
-                    <el-select
-                      :teleported="false"
-                      size="small"
-                      v-model="form_data.search_scope_source"
-                      style="width: 95px"
-                      @change="form_data.search_scope_reference = []"
-                    >
-                      <el-option
-                        :label="$t('workflow.nodes.searchDocumentNode.knowledgeList')"
-                        value="knowledge"
-                      />
-                      <el-option
-                        :label="$t('workflow.nodes.searchDocumentNode.documentList')"
-                        value="document"
-                      />
-                    </el-select>
+                    <span class="color-danger">*</span>
                   </span>
+                    <el-tooltip effect="dark" placement="right" >
+                      <template #content>
+                        <div style="white-space: pre-wrap; font-family: monospace;">{{
+                            ['019d8ac3-e2c6-7ff2-8956-c9c98f0e11f4', '019d8ac3-e2c6-7ff2-8956-c9c98f0e11f3']
+                          }}
+                        </div>
+                      </template>
+                      <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
+                    </el-tooltip>
+                  </div>
+                  <el-select
+                    :teleported="false"
+                    size="small"
+                    v-model="form_data.search_scope_source"
+                    style="width: 95px"
+                    @change="form_data.search_scope_reference = []"
+                  >
+                    <el-option
+                      :label="$t('workflow.nodes.searchDocumentNode.knowledgeList')"
+                      value="knowledge"
+                    />
+                    <el-option
+                      :label="$t('workflow.nodes.searchDocumentNode.documentList')"
+                      value="document"
+                    />
+                  </el-select>
                 </div>
               </template>
               <NodeCascader
@@ -142,9 +148,7 @@
             v-if="form_data.search_mode === 'auto'"
             prop="question_reference"
             :rules="{
-              message: $t(
-                'workflow.nodes.searchKnowledgeNode.searchQuestion.requiredMessage',
-              ),
+              message: $t('workflow.nodes.searchKnowledgeNode.searchQuestion.requiredMessage'),
               trigger: 'blur',
               required: true,
             }"
@@ -159,9 +163,7 @@
               ref="nodeCascaderRef2"
               :nodeModel="nodeModel"
               class="w-full"
-              :placeholder="
-                $t('workflow.nodes.searchKnowledgeNode.searchQuestion.placeholder')
-              "
+              :placeholder="$t('workflow.nodes.searchKnowledgeNode.searchQuestion.placeholder')"
               v-model="form_data.question_reference"
             />
           </el-form-item>
@@ -175,8 +177,8 @@
                 size="small"
                 style="width: 60px; margin: 0 8px"
               >
-                <el-option :label="$t('workflow.condition.AND')" value="AND" />
-                <el-option :label="$t('workflow.condition.OR')" value="OR" />
+                <el-option :label="$t('workflow.condition.AND')" value="AND"/>
+                <el-option :label="$t('workflow.condition.OR')" value="OR"/>
               </el-select>
               <el-text type="info" class="lighter" size="small">
                 {{ $t('workflow.nodes.conditionNode.conditions.label') }}
@@ -185,11 +187,7 @@
             <div v-for="(c, index) in form_data.search_condition_list" :key="index">
               <el-row :gutter="8" class="mb-8">
                 <el-col :span="8">
-                  <el-select
-                    v-model="c.key"
-                    filterable
-                    :filter-method="filterMethod"
-                  >
+                  <el-select v-model="c.key" filterable :filter-method="filterMethod">
                     <el-option
                       v-for="tag in form_data.knowledge_tags"
                       :key="tag"
@@ -238,18 +236,18 @@
   </NodeContainer>
 </template>
 <script setup lang="ts">
-import { cloneDeep, set } from 'lodash'
+import {cloneDeep, set} from 'lodash'
 
 import NodeContainer from '@/workflow/common/NodeContainer.vue'
 import NodeCascader from '@/workflow/common/NodeCascader.vue'
 import AddKnowledgeDialog from '@/views/application/component/AddKnowledgeDialog.vue'
-import type { FormInstance } from 'element-plus'
-import { computed, onMounted, ref, watch } from 'vue'
-import { relatedObject } from '@/utils/array'
-import { t } from '@/locales'
+import type {FormInstance} from 'element-plus'
+import {computed, onMounted, ref, watch} from 'vue'
+import {relatedObject} from '@/utils/array'
+import {t} from '@/locales'
 import AppIcon from '@/components/app-icon/AppIcon.vue'
-import { loadSharedApi } from '@/utils/dynamics-api/shared-api'
-import { useRoute } from 'vue-router'
+import {loadSharedApi} from '@/utils/dynamics-api/shared-api'
+import {useRoute} from 'vue-router'
 
 const route = useRoute()
 
@@ -257,9 +255,9 @@ const props = defineProps<{ nodeModel: any }>()
 const nodeCascaderRef = ref()
 const nodeCascaderRef2 = ref()
 const compareList = [
-  { value: 'contain', label: t('workflow.compare.contain') },
-  { value: 'not_contain', label: t('workflow.compare.not_contain') },
-  { value: 'eq', label: t('workflow.compare.eq') },
+  {value: 'contain', label: t('workflow.compare.contain')},
+  {value: 'not_contain', label: t('workflow.compare.not_contain')},
+  {value: 'eq', label: t('workflow.compare.eq')},
 ]
 
 const apiType = computed(() => {
@@ -337,7 +335,7 @@ function addCondition() {
   set(form_data.value, 'search_condition_list', list)
 }
 
-function delCondition(index: number) {
+function delCondition(index: number | string) {
   const list = cloneDeep(form_data.value.search_condition_list)
   list.splice(index, 1)
   set(form_data.value, 'search_condition_list', list)
@@ -348,8 +346,8 @@ function getAllTags(knowledge_ids: any) {
     set(form_data.value, 'knowledge_tags', [])
     return
   }
-  loadSharedApi({ type: 'knowledge', systemType: apiType.value })
-    .getAllTags({ knowledge_ids: knowledge_ids }, {})
+  loadSharedApi({type: 'knowledge', systemType: apiType.value})
+    .getAllTags({knowledge_ids: knowledge_ids}, {})
     .then((res: any) => {
       set(form_data.value, 'knowledge_tags', res.data.slice(0, 100))
       all_knowledge_tags.value = res.data
@@ -357,7 +355,9 @@ function getAllTags(knowledge_ids: any) {
 }
 
 function filterMethod(val: string) {
-  form_data.value.knowledge_tags = all_knowledge_tags.value.filter((item: any) => item.key.indexOf(val) > -1).slice(0, 100)
+  form_data.value.knowledge_tags = all_knowledge_tags.value
+    .filter((item: any) => item.key.indexOf(val) > -1)
+    .slice(0, 100)
 }
 
 watch(
@@ -374,7 +374,7 @@ const validate = () => {
     nodeCascaderRef2.value?.validate(),
     knowledgeNodeFormRef.value?.validate(),
   ]).catch((err) => {
-    return Promise.reject({ node: props.nodeModel, errMessage: err })
+    return Promise.reject({node: props.nodeModel, errMessage: err})
   })
 }
 

@@ -6,6 +6,18 @@ export default {
   importTool: '匯入工具',
   settingTool: '設定工具',
   updatedVersion: '更新版本',
+  generateCodeDialog: {
+    generatePrompt: '生成 Python 代码',
+    placeholder: '請輸入主題',
+    title: 'python 代码顯示在這裡',
+  },
+  toolWorkflow: {
+    title: '工作流',
+        copyToolWorkflow: '复制工作流',
+    creatToolWorkflow: '創建工作流',
+    toActiveTip: '無法啓用，請先發布工作流。',
+    debugResult: '調試結果',
+  },
   dataSource: {
     title: '數據源',
     createDataSource: '創建數據源',
@@ -53,23 +65,28 @@ export default {
   },
   delete: {
     confirmTitle: '是否刪除工具',
+    confirmTitle2: '个工具?',
     confirmMessage: '刪除後，引用該工具的智能體在查詢時會報錯，請謹慎操作。',
     resourceCountMessage: '此工具關聯 {count} 個資源，刪除後無法使用，請謹慎操作。',
   },
   disabled: {
     confirmTitle: '是否停用工具：',
-    confirmMessage: '停用後，引用該工具的智能體在查詢時會報錯，請謹慎操作。',
+    confirmMessage: '停用後，引用該工具的資源執行會報錯，請謹慎操作。',
   },
   form: {
     toolName: {
-      name: '工具名稱',
+      label: '工具名稱',
       placeholder: '請輸入工具名稱',
       requiredMessage: '請輸入工具名稱',
     },
     mcpName: {
-      name: 'MCP 名稱',
       placeholder: '請輸入 MCP 名稱',
       requiredMessage: '請輸入 MCP 名稱',
+    },
+    workflowName: {
+      label: '工作流名稱',
+      placeholder: '請輸入工作流名稱',
+      requiredMessage: '請輸入工作流名稱',
     },
     paramName: {
       label: '參數名',

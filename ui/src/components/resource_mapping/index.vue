@@ -16,6 +16,15 @@
         :type="currentSource.type"
       />
       <el-avatar
+        v-else-if="currentSourceType === 'APPLICATION'"
+        shape="square"
+        :size="24"
+        style="background: none"
+        class="mr-12"
+      >
+        <img :src="resetUrl(currentSource?.icon, resetUrl('./favicon.ico'))" alt="" />
+      </el-avatar>
+      <el-avatar
         v-else-if="currentSourceType === 'TOOL' && isAppIcon(currentSource?.icon)"
         shape="square"
         :size="24"
@@ -55,7 +64,7 @@
           :placeholder="$t('common.search')"
           style="width: 220px"
           clearable
-          @keyup.enter="pageResourceMapping()"
+          @keyup.enter="currentTab === 'dependency' ? pageMappingResource() : pageResourceMapping()"
         />
         <el-input
           v-if="searchType === 'user_name'"
@@ -63,12 +72,12 @@
           :placeholder="$t('common.search')"
           style="width: 220px"
           clearable
-          @keyup.enter="pageResourceMapping()"
+          @keyup.enter="currentTab === 'dependency' ? pageMappingResource() : pageResourceMapping()"
         />
         <el-select
           v-else-if="searchType === 'source_type'"
           v-model="query.source_type"
-          @change="pageResourceMapping()"
+          @change="currentTab === 'dependency' ? pageMappingResource() : pageResourceMapping()"
           filterable
           clearable
           multiple
@@ -80,11 +89,183 @@
         >
           <el-option :label="$t('views.application.title')" value="APPLICATION" />
           <el-option :label="$t('views.knowledge.title')" value="KNOWLEDGE" />
+          <el-option :label="$t('views.tool.title')" value="TOOL" />
+          <el-option :label="$t('views.model.title')" value="MODEL" />
         </el-select>
       </div>
+      <el-radio-group v-model="currentTab" class="app-radio-button-group" @change="handleTabChange">
+        <el-radio-button
+          v-for="item in tabList"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </el-radio-group>
     </div>
 
+    <!--dependency-->
     <app-table
+      v-if="currentTab === 'dependency'"
+      ref="dependencyTableRef"
+      class="mt-16"
+      :data="dependencyTableData"
+      :pagination-config="dependencyPaginationConfig"
+      @sizeChange="handleDependencySizeChange"
+      @changePage="pageMappingResource"
+      :maxTableHeight="200"
+      :row-key="(row: any) => row.id"
+      v-loading="loading"
+    >
+      <el-table-column prop="name" :label="$t('common.name')" min-width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-button
+            link
+            @click="toSetting({ ...row, source_type: row.target_type, source_id: row.target_id })"
+          >
+            <div class="flex align-center">
+              <KnowledgeIcon
+                v-if="row.target_type === 'KNOWLEDGE'"
+                class="mr-8"
+                :size="22"
+                :type="row.icon"
+              />
+              <el-avatar
+                v-else-if="row.target_type === 'APPLICATION' && isAppIcon(row?.icon)"
+                shape="square"
+                :size="22"
+                style="background: none"
+                class="mr-8"
+              >
+                <img :src="resetUrl(row?.icon, resetUrl('./favicon.ico'))" alt="" />
+              </el-avatar>
+
+              <el-avatar
+                v-else-if="row.target_type === 'TOOL' && isAppIcon(row?.icon)"
+                shape="square"
+                :size="22"
+                style="background: none"
+                class="mr-8"
+              >
+                <img :src="resetUrl(row.icon, resetUrl('./favicon.ico'))" alt="" />
+              </el-avatar>
+              <ToolIcon
+                v-else-if="row.target_type === 'TOOL'"
+                class="mr-8"
+                :size="22"
+                :type="row.type"
+              />
+              <span
+                v-else-if="row.target_type === 'MODEL'"
+                style="height: 22px; width: 22px"
+                :innerHTML="getRowProviderIcon(row)"
+                class="mr-8 flex align-center justify-center"
+              ></span>
+
+              <span>{{ row.name }}</span>
+            </div>
+          </el-button>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="desc"
+        min-width="120"
+        show-overflow-tooltip
+        :label="$t('common.desc')"
+      />
+      <el-table-column
+        prop="target_type"
+        min-width="120"
+        show-overflow-tooltip
+        :label="$t('common.type')"
+      >
+        <template #default="{ row }"
+          >{{
+            row.target_type === 'APPLICATION'
+              ? $t('views.application.title')
+              : row.target_type === 'TOOL'
+                ? $t('views.tool.title')
+                : row.target_type === 'MODEL'
+                  ? $t('views.model.title')
+                  : $t('views.knowledge.title')
+          }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="workspace_name"
+        min-width="120"
+        show-overflow-tooltip
+        :label="$t('views.workspace.title')"
+        v-if="showWorkspace"
+      >
+        <template #header>
+          <div>
+            <span>{{ $t('views.workspace.title') }}</span>
+            <el-popover
+              :width="200"
+              trigger="click"
+              :visible="workspaceVisible"
+              :persistent="false"
+            >
+              <template #reference>
+                <el-button
+                  style="margin-top: -2px"
+                  :type="workspaceArr && workspaceArr.length > 0 ? 'primary' : ''"
+                  link
+                  @click="workspaceVisible = !workspaceVisible"
+                >
+                  <el-icon>
+                    <Filter />
+                  </el-icon>
+                </el-button>
+              </template>
+              <div class="filter">
+                <div class="form-item mb-16 ml-4">
+                  <div @click.stop>
+                    <el-input
+                      v-model="filterText"
+                      :placeholder="$t('common.search')"
+                      prefix-icon="Search"
+                      clearable
+                    />
+                    <el-scrollbar height="300" v-if="filterData.length">
+                      <el-checkbox-group
+                        v-model="workspaceArr"
+                        style="display: flex; flex-direction: column"
+                      >
+                        <el-checkbox
+                          v-for="item in filterData"
+                          :key="item.value"
+                          :label="item.label"
+                          :value="item.value"
+                        />
+                      </el-checkbox-group>
+                    </el-scrollbar>
+                    <el-empty v-else :description="$t('common.noData')" />
+                  </div>
+                </div>
+              </div>
+              <div class="text-right">
+                <el-button size="small" @click="filterWorkspaceChange('clear')"
+                  >{{ $t('common.clear') }}
+                </el-button>
+                <el-button type="primary" @click="filterWorkspaceChange" size="small"
+                  >{{ $t('common.confirm') }}
+                </el-button>
+              </div>
+            </el-popover>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="username"
+        min-width="120"
+        show-overflow-tooltip
+        :label="$t('common.creator')"
+      />
+    </app-table>
+    <!--dependent-->
+    <app-table
+      v-if="currentTab === 'dependent'"
       ref="multipleTableRef"
       class="mt-16"
       :data="tableData"
@@ -115,6 +296,27 @@
                 <img :src="resetUrl(row?.icon, resetUrl('./favicon.ico'))" alt="" />
               </el-avatar>
 
+              <el-avatar
+                v-else-if="row.source_type === 'TOOL' && isAppIcon(row?.icon)"
+                shape="square"
+                :size="22"
+                style="background: none"
+                class="mr-8"
+              >
+                <img :src="resetUrl(row?.icon, resetUrl('./favicon.ico'))" alt="" />
+              </el-avatar>
+              <ToolIcon
+                v-else-if="row.source_type === 'TOOL'"
+                class="mr-8"
+                :size="22"
+                :type="row.type"
+              />
+              <span
+                v-else-if="row.source_type === 'MODEL'"
+                style="height: 22px; width: 22px"
+                :innerHTML="getRowProviderIcon(row)"
+                class="mr-8 flex align-center justify-center"
+              ></span>
               <span>{{ row.name }}</span>
             </div>
           </el-button>
@@ -132,11 +334,13 @@
         show-overflow-tooltip
         :label="$t('common.type')"
       >
-        <template #default="{ row }">
-          {{
+        <template #default="{ row }"
+          >{{
             row.source_type === 'APPLICATION'
               ? $t('views.application.title')
-              : $t('views.knowledge.title')
+              : row.source_type === 'TOOL'
+                ? $t('views.tool.title')
+                : $t('views.knowledge.title')
           }}
         </template>
       </el-table-column>
@@ -244,6 +448,15 @@ const paginationConfig = reactive({
   page_size: 20,
   total: 0,
 })
+
+// 依赖
+const dependencyTableData = ref<Array<any>>()
+const dependencyPaginationConfig = reactive({
+  current_page: 1,
+  page_size: 20,
+  total: 0,
+})
+
 const apiType = computed(() => {
   if (route.path.includes('resource-management')) {
     return 'systemManage'
@@ -256,11 +469,43 @@ const apiType = computed(() => {
 
 const showWorkspace = computed(() => (user.isPE() || user.isEE()) && route.path.includes('shared'))
 
+const currentTab = ref('dependency') // 'dependency' 代表“我依赖的”， 'dependent' 代表“依赖我的”
+const dependencyTableRef = ref()
+const tabList = [
+  {
+    value: 'dependency',
+    label: t('views.system.resourceMapping.dependency'),
+  },
+  {
+    value: 'dependent',
+    label: t('views.system.resourceMapping.dependent'),
+  },
+]
+
+const handleTabChange = () => {
+  query.value = { resource_name: '', user_name: '', source_type: '' }
+  searchType.value = 'resource_name'
+
+  workspaceArr.value = []
+  filterText.value = ''
+
+  if (currentTab.value === 'dependency') {
+    dependencyPaginationConfig.current_page = 1
+    getProvider()
+    pageMappingResource()
+  } else {
+    paginationConfig.current_page = 1
+    pageResourceMapping()
+  }
+}
+
 const currentSourceName = computed(() => {
   if (currentSourceType.value === 'TOOL') {
     return t('views.tool.title')
   } else if (currentSourceType.value === 'MODEL') {
     return t('views.model.title')
+  } else if (currentSourceType.value === 'APPLICATION') {
+    return t('views.application.title')
   } else {
     return t('views.knowledge.title')
   }
@@ -289,28 +534,82 @@ const pageResourceMapping = () => {
       paginationConfig.total = res.data.total || 0
     })
 }
+// 依赖
+const pageMappingResource = () => {
+  const workspaceId = user.getWorkspaceId() || 'default'
+  const params: any = {}
+  if (query.value[searchType.value]) {
+    const backendKey = searchType.value === 'source_type' ? 'target_type' : searchType.value
+    params[backendKey] = query.value[searchType.value]
+  }
+  if (workspaceArr.value.length > 0) {
+    params.workspace_ids = JSON.stringify(workspaceArr.value)
+  }
+  loadSharedApi({ type: 'resourceMapping', systemType: apiType.value })
+    .getMappingResource(
+      workspaceId,
+      currentSourceType.value,
+      currentSourceId.value,
+      dependencyPaginationConfig,
+      params,
+      loading,
+    )
+    .then((res: any) => {
+      dependencyTableData.value = res.data.records || []
+      dependencyPaginationConfig.total = res.data.total || 0
+    })
+}
 
 function handleSizeChange() {
   paginationConfig.current_page = 1
   pageResourceMapping()
 }
 
+function handleDependencySizeChange() {
+  dependencyPaginationConfig.current_page = 1
+  pageMappingResource()
+}
+
 const currentSourceType = ref<string>()
 const currentSourceId = ref<string>()
 const currentSource = ref<any>()
+
 const open = (source: string, data: any) => {
   visible.value = true
   currentSourceType.value = source
   currentSourceId.value = data.id
   currentSource.value = data
-  pageResourceMapping()
+
+  // 根据资源类型设置默认 tab
   if (currentSourceType.value === 'MODEL') {
+    currentTab.value = 'dependent'
+  } else if (currentSourceType.value === 'TOOL' && data.tool_type !== 'WORKFLOW') {
+    currentTab.value = 'dependent'
+  } else {
+    currentTab.value = 'dependency'
+  }
+
+  if (currentTab.value === 'dependency') {
+    pageMappingResource()
+  } else {
+    pageResourceMapping()
+  }
+
+  if (currentSourceType.value === 'MODEL' || currentTab.value === 'dependency') {
     getProvider()
   }
+
   getWorkspaceList()
 }
 const close = () => {
   visible.value = false
+
+  currentTab.value = 'dependency'
+  searchType.value = 'resource_name'
+  query.value = { resource_name: '', user_name: '', source_type: '' }
+  workspaceArr.value = []
+  filterText.value = ''
+
   paginationConfig.current_page = 1
 }
 
@@ -320,9 +619,17 @@ const getProviderIcon = computed(() => {
   }
 })
 
+const getRowProviderIcon = computed(() => {
+  return (row: any) => {
+    return provider_list.value.find((p) => p.provider === row.icon)?.icon
+  }
+})
+
 const provider_list = ref<Array<Provider>>([])
 
 function getProvider() {
+  if (provider_list.value.length > 0) return
+
   model.asyncGetProvider().then((res: any) => {
     provider_list.value = res?.data
   })
@@ -340,7 +647,13 @@ function filterWorkspaceChange(val: string) {
     workspaceArr.value = []
   }
   filterText.value = ''
-  pageResourceMapping()
+  if (currentTab.value === 'dependency') {
+    dependencyPaginationConfig.current_page = 1
+    pageMappingResource()
+  } else {
+    paginationConfig.current_page = 1
+    pageResourceMapping()
+  }
   workspaceVisible.value = false
 }
 

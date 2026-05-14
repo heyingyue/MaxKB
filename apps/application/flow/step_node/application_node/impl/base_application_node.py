@@ -8,6 +8,7 @@ from django.utils.translation import gettext as _
 from application.flow.common import Answer
 from application.flow.i_step_node import NodeResult, INode
 from application.flow.step_node.application_node.i_application_node import IApplicationNode
+from common.utils.logger import maxkb_logger
 from application.models import Chat, ChatSourceChoices
 
 
@@ -72,6 +73,7 @@ def write_context_stream(node_variable: Dict, workflow_variable: Dict, node: INo
                            'child_node': child_node}
 
         if real_node_id is not None:
+            real_node_id = real_node_id + '__' + node.runtime_node_id
             application_node = application_node_dict.get(real_node_id, None)
             if application_node is None:
 
@@ -130,18 +132,17 @@ def reset_application_node_dict(application_node_dict, runtime_node_id, node_dat
             application_node = application_node_dict[key]
             if application_node.get('runtime_node_id') == runtime_node_id:
                 content: str = application_node.get('content')
-                match = re.search('<form_rander>.*?</form_rander>', content)
+                match = re.search(r'<form_rander>.*?<\/form_rander>', content, flags=re.DOTALL)
                 if match:
                     form_setting_str = match.group().replace('<form_rander>', '').replace('</form_rander>', '')
                     form_setting = json.loads(form_setting_str)
                     form_setting['is_submit'] = True
                     form_setting['form_data'] = node_data
                     value = f'<form_rander>{json.dumps(form_setting)}</form_rander>'
-                    res = re.sub('<form_rander>.*?</form_rander>',
-                                 '${value}', content)
+                    res = re.sub(r'<form_rander>.*?<\/form_rander>', '${value}', content, flags=re.DOTALL)
                     application_node['content'] = res.replace('${value}', value)
     except Exception as e:
-        pass
+        maxkb_logger.warning(f'reset_application_node_dict error: {e}', exc_info=True)
 
 
 class BaseApplicationNode(IApplicationNode):

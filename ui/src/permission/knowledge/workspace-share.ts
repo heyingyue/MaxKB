@@ -4,15 +4,18 @@ import { EditionConst, PermissionConst, RoleConst } from '@/utils/permission/dat
 const workspaceShare = {
   is_share: () => true,
   create: () => false,
+  batchDelete: () => false,
+  batchMove: () => false,
   sync: () => false,
   vector: () => false,
   generate: () => false,
   edit: () => false,
   export: () => false,
+  publish: () => false,
   delete: () => false,
   auth: () => false,
   relate_map: () => false,
-  
+
   doc_read: () => false,
   jump_read: () => false,
   doc_create: () => false,

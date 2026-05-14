@@ -180,8 +180,8 @@ import QrCodeTab from '@/views/chat/user-login/scanCompinents/QrCodeTab.vue'
 import {MsgConfirm, MsgError} from '@/utils/message.ts'
 import PasswordAuth from '@/views/chat/auth/component/password.vue'
 import {isAppIcon, loadScript} from '@/utils/common'
-import forge from "node-forge";
 import * as dd from "dingtalk-jsapi";
+import JSEncrypt from "jsencrypt";
 
 useResize()
 const router = useRouter()
@@ -251,11 +251,13 @@ const loginHandle = () => {
         })
       })
     } else {
-      const publicKey = forge.pki.publicKeyFromPem(chatUser?.chat_profile?.rasKey as any);
+      // JSEncrypt 在有些打包环境可能作为 default export 或直接导出，兼容两种情况
+      const JSEncryptCtor = (JSEncrypt as any)?.default ? (JSEncrypt as any).default : JSEncrypt;
+      const js = new (JSEncryptCtor as any)();
+      js.setPublicKey(chatUser?.chat_profile?.rsaKey as any);
       const jsonData = JSON.stringify(loginForm.value);
-      const utf8Bytes = forge.util.encodeUtf8(jsonData);
-      const encrypted = publicKey.encrypt(utf8Bytes, 'RSAES-PKCS1-V1_5');
-      const encryptedBase64 = forge.util.encode64(encrypted);
+      const encryptedBase64 = js.encrypt(jsonData);
+
       chatUser.login({
         encryptedData: encryptedBase64,
         username: loginForm.value.username
@@ -314,25 +316,27 @@ function redirectAuth(authType: string, needMessage: boolean = false) {
     const config = res.data.config
     const queryParams = new URLSearchParams(route.query as any).toString()
     // 构造带查询参数的redirectUrl
-    let redirectUrl = `${config.redirectUrl}/${accessToken}`
+    let redirectUrl = `${config.redirectUrl}`
+    let redirectUrlCallback = `${config.redirectUrl}/${accessToken}`
     if (queryParams) {
-      redirectUrl += `?${queryParams}`
+      redirectUrlCallback += `?${queryParams}`
+      redirectUrl += `&${queryParams}`
     }
     let url
     if (authType === 'CAS') {
       url = config.ldpUri
       url +=
         url.indexOf('?') !== -1
-          ? `&service=${encodeURIComponent(redirectUrl)}`
-          : `?service=${encodeURIComponent(redirectUrl)}`
+          ? `&service=${encodeURIComponent(redirectUrlCallback)}`
+          : `?service=${encodeURIComponent(redirectUrlCallback)}`
     } else if (authType === 'OIDC') {
       const scope = config.scope || 'openid+profile+email'
-      url = `${config.authEndpoint}?client_id=${config.clientId}&redirect_uri=${redirectUrl}&response_type=code&scope=${scope}`
+      url = `${config.authEndpoint}?client_id=${config.clientId}&redirect_uri=${redirectUrlCallback}&response_type=code&scope=${scope}`
       if (config.state) {
         url += `&state=${config.state}`
       }
     } else if (authType === 'OAuth2') {
-      url = `${config.authEndpoint}?client_id=${config.clientId}&response_type=code&redirect_uri=${redirectUrl}&state=${uuidv4()}`
+      url = `${config.authEndpoint}?client_id=${config.clientId}&response_type=code&redirect_uri=${redirectUrl}&state=${uuidv4()}_${accessToken}`
       if (config.scope) {
         url += `&scope=${config.scope}`
       }

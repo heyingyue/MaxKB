@@ -14,6 +14,7 @@ export default {
     TextareaInput: 'Multiline Input',
     MultiRow: 'Multi Row',
     Model: 'Model',
+    Knowledge: 'Knowledge',
   },
   default: {
     label: 'Default',
@@ -49,6 +50,23 @@ export default {
       label: 'Type',
       placeholder: 'Please select a type',
       requiredMessage: 'Type is a required property',
+    },
+    desc: {
+      label: 'description',
+      placeholder: 'Please enter a description',
+    },
+  },
+  TreeSelect: {
+    label: 'Tree Select',
+    select: 'Option',
+    selectRequired: 'Options are required',
+    allowMultipleSelections: 'Allow Multiple Selections',
+    addDialog: {
+      addFirstOption: 'Add Root Option',
+      addSubOptions: 'Add Sub Option',
+      require: 'Please enter at least one complete item',
+      nodeNotFound: 'Parent node not found',
+      tagRequire: 'Label and value cannot be empty',
     },
   },
   DatePicker: {
@@ -124,5 +142,15 @@ export default {
       popover_value: 'Value',
       popover_default: 'Is Default',
     },
+  },
+  ModelConstructor: {
+    optionalModel: 'Optional Model',
+    defaultModel: 'Default Model',
+    modelPlaceholder: 'Please enter a model',
+  },
+  KnowledgeConstructor: {
+    optionalModel: 'Optional Model',
+    defaultModel: 'Default Model',
+    modelPlaceholder: 'Please enter a model',
   },
 }

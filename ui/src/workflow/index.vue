@@ -2,29 +2,30 @@
   <div className="workflow-app" id="container"></div>
   <!-- 辅助工具栏 -->
   <Control class="workflow-control" v-if="lf" :lf="lf"></Control>
-  <TeleportContainer :flow-id="flowId" />
+  <TeleportContainer :flow-id="flowId"/>
   <NodeSearch :lf="lf" ref="nodeSearchRef"></NodeSearch>
 </template>
 <script setup lang="ts">
 import LogicFlow from '@logicflow/core'
-import { ref, onMounted, onUnmounted, inject } from 'vue'
+import {ref, onMounted, onUnmounted, inject, nextTick} from 'vue'
 import AppEdge from './common/edge'
 import loopEdge from './common/loopEdge'
 import Control from './common/NodeControl.vue'
-import { SelectionSelect } from '@logicflow/extension'
+import {SelectionSelect} from '@logicflow/extension'
 import '@logicflow/extension/lib/style/index.css'
 import '@logicflow/core/dist/style/index.css'
-import { initDefaultShortcut } from '@/workflow/common/shortcut'
+import {initDefaultShortcut} from '@/workflow/common/shortcut'
 import Dagre from '@/workflow/plugins/dagre'
-import { disconnectAll, getTeleport } from '@/workflow/common/teleport'
-import { WorkflowMode } from '@/enums/application'
+import {disconnectAll, getTeleport} from '@/workflow/common/teleport'
+import {WorkflowMode} from '@/enums/application'
 
 import NodeSearch from '@/workflow/common/NodeSearch.vue'
-const nodes: any = import.meta.glob('./nodes/**/index.ts', { eager: true })
+
+const nodes: any = import.meta.glob('./nodes/**/index.ts', {eager: true})
 const workflow_mode = inject('workflowMode') || WorkflowMode.Application
 const loop_workflow_mode = inject('loopWorkflowMode') || WorkflowMode.ApplicationLoop
 const nodeSearchRef = ref<InstanceType<typeof NodeSearch>>()
-defineOptions({ name: 'WorkFlow' })
+defineOptions({name: 'WorkFlow'})
 const TeleportContainer = getTeleport()
 const flowId = ref('')
 type ShapeItem = {
@@ -149,7 +150,7 @@ const onmousedown = (shapeItem: ShapeItem) => {
   if (shapeItem.type) {
     lf.value.dnd.startDrag({
       type: shapeItem.type,
-      properties: { ...shapeItem.properties },
+      properties: {...shapeItem.properties},
     })
   }
 
@@ -159,7 +160,7 @@ const onmousedown = (shapeItem: ShapeItem) => {
 }
 const addNode = (shapeItem: ShapeItem) => {
   lf.value.clearSelectElements()
-  const { virtualRectCenterPositionX, virtualRectCenterPositionY } =
+  const {virtualRectCenterPositionX, virtualRectCenterPositionY} =
     lf.value.graphModel.getVirtualRectSize()
   const newNode = lf.value.graphModel.addNode({
     type: shapeItem.type,
@@ -175,6 +176,11 @@ const addNode = (shapeItem: ShapeItem) => {
 const clearGraphData = () => {
   return lf.value.clearData()
 }
+const fitView = () => {
+  nextTick(() => {
+    lf.value?.fitView()
+  })
+}
 
 defineExpose({
   onmousedown,
@@ -184,6 +190,7 @@ defineExpose({
   clearGraphData,
   renderGraphData,
   render,
+  fitView,
 })
 </script>
 <style lang="scss">
@@ -192,12 +199,14 @@ defineExpose({
   height: 100%;
   position: relative;
 }
+
 .workflow-control {
   position: absolute;
   bottom: 24px;
   left: 24px;
   z-index: 2;
 }
+
 .lf-drag-able {
   cursor: pointer;
 }

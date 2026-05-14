@@ -44,6 +44,7 @@
                           :is="iconComponent(`${item.type}-icon`)"
                           class="mr-8"
                           :size="20"
+                          style="--el-avatar-border-radius: 6px"
                         />
                         <div class="lighter">{{ item.label }}</div>
                       </div>
@@ -75,7 +76,7 @@
       <el-tab-pane :label="$t('views.tool.title')" name="CUSTOM_TOOL">
         <LayoutContainer :showLeft="!route.path.includes('shared')">
           <template #left>
-            <folder-tree
+            <FolderVirtualizedTree
               :source="SourceTypeEnum.TOOL"
               :data="toolTreeData"
               :currentNodeKey="folder.currentFolder?.id"
@@ -235,7 +236,7 @@ async function getToolList() {
     tool_type_list: [baseType, 'WORKFLOW'],
   })
   toolList.value = res.data?.tools || res.data || []
-  toolList.value = toolList.value?.filter((item: any) => item.is_active)
+  toolList.value = toolList.value?.filter((item: any) => item.is_active && item.id !== props.id)
 }
 
 function folderClickHandle(row: any) {

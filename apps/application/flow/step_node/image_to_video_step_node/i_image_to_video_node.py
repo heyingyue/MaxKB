@@ -10,7 +10,10 @@ from application.flow.i_step_node import INode, NodeResult
 
 
 class ImageToVideoNodeSerializer(serializers.Serializer):
-    model_id = serializers.CharField(required=True, label=_("Model id"))
+    model_id = serializers.CharField(required=False, allow_blank=True, allow_null=True, label=_("Model id"))
+    model_id_type = serializers.CharField(required=False, default='custom', label=_("Model id type"))
+    model_id_reference = serializers.ListField(required=False, child=serializers.CharField(), allow_empty=True,
+                                               label=_("Reference Field"))
 
     prompt = serializers.CharField(required=True, label=_("Prompt word (positive)"))
 
@@ -56,7 +59,8 @@ class IImageToVideoNode(INode):
                 self.node_params_serializer.data.get('last_frame_url')[1:])
         node_params_data = {k: v for k, v in self.node_params_serializer.data.items()
                             if k not in ['first_frame_url', 'last_frame_url']}
-        if [WorkflowMode.KNOWLEDGE, WorkflowMode.KNOWLEDGE_LOOP].__contains__(
+        if [WorkflowMode.KNOWLEDGE, WorkflowMode.KNOWLEDGE_LOOP, WorkflowMode.TOOL,
+            WorkflowMode.TOOL_LOOP].__contains__(
                 self.workflow_manage.flow.workflow_mode):
             return self.execute(first_frame_url=first_frame_url, last_frame_url=last_frame_url, **node_params_data,
                                 **self.flow_params_serializer.data,
@@ -69,5 +73,6 @@ class IImageToVideoNode(INode):
                 model_params_setting,
                 chat_record_id,
                 first_frame_url, last_frame_url,
+                model_id_type=None, model_id_reference=None,
                 **kwargs) -> NodeResult:
         pass

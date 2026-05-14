@@ -14,6 +14,7 @@ export default {
     TextareaInput: '多行文字框',
     MultiRow: '單行多選卡',
     Model: '模型',
+    Knowledge: '知識庫',
   },
   default: {
     label: '預設值',
@@ -49,6 +50,23 @@ export default {
       label: '組件類型',
       placeholder: '請選擇組件類型',
       requiredMessage: '組件類型 為必填屬性',
+    },
+    desc: {
+      label: '描述',
+      placeholder: '請輸入描述',
+    },
+  },
+  TreeSelect: {
+    label: '樹狀選擇器',
+    select: '選項',
+    selectRequired: '選項必填',
+    allowMultipleSelections: '允許多選',
+    addDialog: {
+      addFirstOption: '新增第一層選項',
+      addSubOptions: '新增子選項',
+      require: '請至少填寫一筆完整資料',
+      nodeNotFound: '找不到父節點',
+      tagRequire: '標籤與選項值不可為空',
     },
   },
   DatePicker: {
@@ -124,5 +142,10 @@ export default {
       popover_value: '值',
       popover_default: '是否為預設值',
     },
+  },
+  ModelConstructor: {
+    optionalModel: '選擇模型',
+    defaultModel: '預設模型',
+    modelPlaceholder: '請輸入模型名稱',
   },
 }

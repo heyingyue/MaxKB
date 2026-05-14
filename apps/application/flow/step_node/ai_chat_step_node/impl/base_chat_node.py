@@ -6,26 +6,31 @@
     @date：2024/6/4 14:30
     @desc:
 """
+import base64
 import json
 import re
 import time
 from functools import reduce
+from imghdr import what
 from typing import List, Dict
 
+from django.db.models import QuerySet
+from django.utils.translation import gettext as _
+from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, SystemMessage
+
+from application.flow.common import WorkflowMode
 from application.flow.i_step_node import NodeResult, INode
 from application.flow.step_node.ai_chat_step_node.i_chat_node import IChatNode
-from application.flow.tools import Reasoning, mcp_response_generator
+from application.flow.tools import Reasoning, mcp_response_generator, get_tools
 from application.models import Application, ApplicationApiKey, ApplicationAccessToken
 from common.exception.app_exception import AppApiException
 from common.utils.rsa_util import rsa_long_decrypt
 from common.utils.shared_resource_auth import filter_authorized_ids
 from common.utils.tool_code import ToolExecutor
-from django.db.models import QuerySet
-from django.utils.translation import gettext as _
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, SystemMessage
+from knowledge.models import File
 from models_provider.models import Model
 from models_provider.tools import get_model_credential, get_model_instance_by_model_workspace_id
-from tools.models import Tool
+from tools.models import Tool, ToolType
 
 
 def _write_context(node_variable: Dict, workflow_variable: Dict, node: INode, workflow, answer: str,
@@ -177,8 +182,10 @@ class BaseChatNode(IChatNode):
             if reference_data and isinstance(reference_data, dict):
                 model_id = reference_data.get('model_id', model_id)
                 model_params_setting = reference_data.get('model_params_setting')
+        if model_id is None or model_id == '':
+            raise Exception(_('Model is not allowed to be empty'))
 
-        if  model_params_setting is None and model_id:
+        if model_params_setting is None and model_id:
             model_params_setting = get_default_model_params_setting(model_id)
 
         if model_setting is None:
@@ -187,16 +194,16 @@ class BaseChatNode(IChatNode):
         self.context['model_setting'] = model_setting
         workspace_id = self.workflow_manage.get_body().get('workspace_id')
         chat_model = get_model_instance_by_model_workspace_id(model_id, workspace_id,
-                                                              **model_params_setting)
+                                                              **(model_params_setting or {}))
         history_message = self.get_history_message(history_chat_record, dialogue_number, dialogue_type,
                                                    self.runtime_node_id)
         self.context['history_message'] = [{'content': message.content, 'role': message.type} for message in
                                            (history_message if history_message is not None else [])]
-        question = self.generate_prompt_question(prompt)
+        question = self.generate_prompt_question(prompt, chat_model)
         self.context['question'] = question.content
         system = self.workflow_manage.generate_prompt(system)
         self.context['system'] = system
-        message_list = self.generate_message_list(system, prompt, history_message)
+        message_list = self.generate_message_list(question, history_message)
         self.context['message_list'] = message_list
 
         # 过滤tool_id
@@ -216,11 +223,11 @@ class BaseChatNode(IChatNode):
         mcp_result = self._handle_mcp_request(
             mcp_source, mcp_servers, mcp_tool_id, mcp_tool_ids, tool_ids,
             application_ids, skill_tool_ids, mcp_output_enable,
-            chat_model, message_list, history_message, question, chat_id
+            chat_model, SystemMessage(system), message_list, history_message, question, chat_id, workspace_id
         )
         if mcp_result:
             return mcp_result
-
+        message_list = [SystemMessage(system)] + message_list
         if stream:
             r = chat_model.stream(message_list)
             return NodeResult({'result': r, 'chat_model': chat_model, 'message_list': message_list,
@@ -236,7 +243,8 @@ class BaseChatNode(IChatNode):
 
     def _handle_mcp_request(self, mcp_source, mcp_servers, mcp_tool_id, mcp_tool_ids, tool_ids,
                             application_ids, skill_tool_ids,
-                            mcp_output_enable, chat_model, message_list, history_message, question, chat_id):
+                            mcp_output_enable, chat_model, system_prompt, message_list, history_message, question,
+                            chat_id, workspace_id):
 
         mcp_servers_config = {}
 
@@ -248,7 +256,8 @@ class BaseChatNode(IChatNode):
             mcp_tool_ids = []
         if mcp_tool_id:
             mcp_tool_ids = list(set(mcp_tool_ids + [mcp_tool_id]))
-        if mcp_source == 'custom' and mcp_servers and '"stdio"' not in mcp_servers:
+        if mcp_source == 'custom' and mcp_servers:
+            ToolExecutor().validate_mcp_transport(mcp_servers)
             mcp_servers_config = json.loads(mcp_servers)
             mcp_servers_config = self.handle_variables(mcp_servers_config)
         elif mcp_tool_ids:
@@ -258,19 +267,20 @@ class BaseChatNode(IChatNode):
                     mcp_servers_config = {**mcp_servers_config, **json.loads(mcp_tool['code'])}
                     mcp_servers_config = self.handle_variables(mcp_servers_config)
         tool_init_params = {}
+        tools = get_tools(self.workflow_manage.get_source_type(), self.workflow_manage.get_source_id(), tool_ids,
+                          workspace_id)
         if tool_ids and len(tool_ids) > 0:  # 如果有工具ID，则将其转换为MCP
             self.context['tool_ids'] = tool_ids
             for tool_id in tool_ids:
-                tool = QuerySet(Tool).filter(id=tool_id).first()
-                if not tool.is_active:
+                tool = QuerySet(Tool).filter(id=tool_id, tool_type=ToolType.CUSTOM).first()
+                if tool is None or not tool.is_active:
                     continue
                 executor = ToolExecutor()
                 if tool.init_params is not None:
-                    params = json.loads(rsa_long_decrypt(tool.init_params))
                     tool_init_params = json.loads(rsa_long_decrypt(tool.init_params))
                 else:
-                    params = {}
-                tool_config = executor.get_tool_mcp_config(tool, params)
+                    tool_init_params = {i["field"]: i.get('default_value') for i in tool.init_field_list}
+                tool_config = executor.get_tool_mcp_config(tool, tool_init_params)
 
                 mcp_servers_config[str(tool.id)] = tool_config
 
@@ -322,18 +332,25 @@ class BaseChatNode(IChatNode):
                 })
             mcp_servers_config['skills'] = skill_file_items
 
-        if len(mcp_servers_config) > 0:
+        if len(mcp_servers_config) > 0 or len(tools) > 0:
             # 安全获取 application
             application_id = None
-            if (self.workflow_manage and
-                    self.workflow_manage.work_flow_post_handler and
-                    self.workflow_manage.work_flow_post_handler.chat_info):
+            tool_id = None
+            knowledge_id = None
+            if [WorkflowMode.KNOWLEDGE, WorkflowMode.KNOWLEDGE_LOOP].__contains__(
+                    self.workflow_manage.flow.workflow_mode):
+                knowledge_id = self.workflow_params.get('knowledge_id')
+            elif [WorkflowMode.APPLICATION, WorkflowMode.APPLICATION_LOOP].__contains__(
+                    self.workflow_manage.flow.workflow_mode):
                 application_id = self.workflow_manage.work_flow_post_handler.chat_info.application.id
-            knowledge_id = self.workflow_params.get('knowledge_id')
-            source_id = application_id or knowledge_id
-            source_type = 'APPLICATION' if application_id else 'KNOWLEDGE'
-            r = mcp_response_generator(chat_model, message_list, json.dumps(mcp_servers_config), mcp_output_enable,
-                                       tool_init_params, source_id, source_type, chat_id)
+            elif [WorkflowMode.TOOL, WorkflowMode.TOOL_LOOP].__contains__(self.workflow_manage.flow.workflow_mode):
+                tool_id = self.workflow_params.get('tool_id')
+
+            source_id = application_id or knowledge_id or tool_id
+            source_type = 'APPLICATION' if application_id else 'KNOWLEDGE' if knowledge_id else 'TOOL'
+            r = mcp_response_generator(chat_model, system_prompt, message_list, json.dumps(mcp_servers_config),
+                                       mcp_output_enable,
+                                       tool_init_params, source_id, source_type, chat_id, tools)
             return NodeResult(
                 {'result': r, 'chat_model': chat_model, 'message_list': message_list,
                  'history_message': [{'content': message.content, 'role': message.type} for message in
@@ -348,9 +365,9 @@ class BaseChatNode(IChatNode):
         for k, v in tool_params.items():
             if type(v) == str:
                 tool_params[k] = self.workflow_manage.generate_prompt(tool_params[k])
-            if type(v) == dict:
+            elif type(v) == dict:
                 self.handle_variables(v)
-            if (type(v) == list) and (type(v[0]) == str):
+            elif (type(v) == list) and len(v) > 0 and (type(v[0]) == str):
                 tool_params[k] = self.get_reference_content(v)
         return tool_params
 
@@ -368,18 +385,76 @@ class BaseChatNode(IChatNode):
             range(start_index if start_index > 0 else 0, len(history_chat_record))], [])
         for message in history_message:
             if isinstance(message.content, str):
-                message.content = re.sub('<form_rander>[\d\D]*?<\/form_rander>', '', message.content)
+                message.content = re.sub(r'<form_rander>.*?<\/form_rander>', '', message.content, flags=re.DOTALL)
         return history_message
 
-    def generate_prompt_question(self, prompt):
-        return HumanMessage(self.workflow_manage.generate_prompt(prompt))
+    def generate_prompt_question(self, prompt, model):
+        image = self.get_image()
+        video = self.get_video()
+        videos = []
+        images = []
+        if image:
+            images = self._process_images(image)
+        if video:
+            videos = self._process_videos(video, model)
+        return HumanMessage(
+            content=[*videos, *images, {'type': 'text', 'text': self.workflow_manage.generate_prompt(prompt)}])
 
-    def generate_message_list(self, system: str, prompt: str, history_message):
-        if system is not None and len(system) > 0:
-            return [SystemMessage(self.workflow_manage.generate_prompt(system)), *history_message,
-                    HumanMessage(self.workflow_manage.generate_prompt(prompt))]
-        else:
-            return [*history_message, HumanMessage(self.workflow_manage.generate_prompt(prompt))]
+    def get_image(self):
+        if 'image_list' in self.node_params_serializer.data:
+            image = self.workflow_manage.get_reference_field(self.node_params_serializer.data.get('image_list')[0],
+                                                             self.node_params_serializer.data.get('image_list')[1:])
+            return image
+        return None
+
+    def get_video(self):
+        if 'video_list' in self.node_params_serializer.data:
+            video = self.workflow_manage.get_reference_field(self.node_params_serializer.data.get('video_list')[0],
+                                                             self.node_params_serializer.data.get('video_list')[1:])
+            return video
+        return None
+
+    def _process_videos(self, image, video_model):
+        videos = []
+        if isinstance(image, str) and image.startswith('http'):
+            videos.append({'type': 'video_url', 'video_url': {'url': image}})
+        elif image is not None and len(image) > 0:
+            for img in image:
+                if 'file_id' in img:
+                    file_id = img['file_id']
+                    file = QuerySet(File).filter(id=file_id).first()
+                    url = video_model.upload_file_and_get_url(file.get_bytes(), file.file_name)
+                    videos.append(
+                        {'type': 'video_url', 'video_url': {'url': url}})
+                elif 'url' in img and img['url'].startswith('http'):
+                    videos.append(
+                        {'type': 'video_url', 'video_url': {'url': img['url']}})
+        return videos
+
+    def _process_images(self, image):
+        """
+        处理图像数据，转换为模型可识别的格式
+        """
+        images = []
+        if isinstance(image, str) and image.startswith('http'):
+            images.append({'type': 'image_url', 'image_url': {'url': image}})
+        elif image is not None and len(image) > 0:
+            for img in image:
+                if 'file_id' in img:
+                    file_id = img['file_id']
+                    file = QuerySet(File).filter(id=file_id).first()
+                    image_bytes = file.get_bytes()
+                    base64_image = base64.b64encode(image_bytes).decode("utf-8")
+                    image_format = what(None, image_bytes)
+                    images.append(
+                        {'type': 'image_url', 'image_url': {'url': f'data:image/{image_format};base64,{base64_image}'}})
+                elif 'url' in img and img['url'].startswith('http'):
+                    images.append(
+                        {'type': 'image_url', 'image_url': {'url': img["url"]}})
+        return images
+
+    def generate_message_list(self, question, history_message):
+        return [*history_message, question]
 
     @staticmethod
     def reset_message_list(message_list: List[BaseMessage], answer_text):

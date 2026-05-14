@@ -382,10 +382,10 @@ class ChatSerializers(serializers.Serializer):
                                 str(chat_record.id) == str(chat_record_id)]
             if chat_record_list is not None and len(chat_record_list):
                 return chat_record_list[-1]
-        chat_record = QuerySet(ChatRecord).filter(id=chat_record_id, chat_id=chat_info.chat_id).first()
-        if chat_record is None:
-            if not is_valid_uuid(chat_record_id):
-                raise ChatException(500, _("Conversation record does not exist"))
+            chat_record = QuerySet(ChatRecord).filter(id=chat_record_id, chat_id=chat_info.chat_id).first()
+            if chat_record is None:
+                if not is_valid_uuid(chat_record_id):
+                    raise ChatException(500, _("Conversation record does not exist"))
         chat_record = QuerySet(ChatRecord).filter(id=chat_record_id).first()
         return chat_record
 
@@ -446,6 +446,8 @@ class ChatSerializers(serializers.Serializer):
         application_access_token = QuerySet(ApplicationAccessToken).filter(application_id=application_id).first()
         if application_access_token and application_access_token.authentication and application_access_token.authentication_value.get(
                 'type') == 'login':
+            if chat_user_type == ChatUserType.ANONYMOUS_USER.value:
+                raise ChatException(500, _("The chat user is not authorized."))
             if chat_user_type == ChatUserType.CHAT_USER.value and is_auth_chat_user:
                 is_auth = is_auth_chat_user(chat_user_id, application_id)
                 if not is_auth:
@@ -458,7 +460,8 @@ class ChatSerializers(serializers.Serializer):
         chat_info.get_application()
         chat_info.get_chat_user(asker=(instance.get('form_data') or {}).get('asker'))
         self.is_valid_chat_id(chat_info)
-        self.is_valid_chat_user()
+        if not self.data.get('debug'):
+            self.is_valid_chat_user()
         if chat_info.application.type == ApplicationTypeChoices.SIMPLE:
             self.is_valid_application_simple(raise_exception=True, chat_info=chat_info)
             return self.chat_simple(chat_info, instance, base_to_response)

@@ -14,6 +14,8 @@ from django.utils.translation import gettext as _
 
 from application.flow.i_step_node import NodeResult
 from application.flow.step_node.tool_node.i_tool_node import IToolNode
+from common.utils.common import common_convert_value
+from common.utils.logger import maxkb_logger
 from common.utils.tool_code import ToolExecutor
 from maxkb.const import CONFIG
 
@@ -32,26 +34,24 @@ def write_context(step_variable: Dict, global_variable: Dict, node, workflow):
 
 
 def valid_reference_value(_type, value, name):
-    try:
-        if _type == 'int':
-            instance_type = int | float
-        elif _type == 'boolean':
-            instance_type = bool
-        elif _type == 'float':
-            instance_type = float | int
-        elif _type == 'dict':
-            value = json.loads(value) if isinstance(value, str) else value
-            instance_type = dict
-        elif _type == 'array':
-            value = json.loads(value) if isinstance(value, str) else value
-            instance_type = list
-        elif _type == 'string':
-            instance_type = str
-        else:
-            raise Exception(_(
-                'Field: {name} Type: {_type} Value: {value} Unsupported types'
-            ).format(name=name, _type=_type))
-    except:
+    if _type == 'int':
+        instance_type = int | float
+    elif _type == 'boolean':
+        instance_type = bool
+    elif _type == 'float':
+        instance_type = float | int
+    elif _type == 'dict':
+        value = json.loads(value) if isinstance(value, str) else value
+        instance_type = dict
+    elif _type == 'array':
+        value = json.loads(value) if isinstance(value, str) else value
+        instance_type = list
+    elif _type == 'string':
+        instance_type = str
+    else:
+        maxkb_logger.error(_(
+            'Field: {name} Type: {_type} Value: {value} Unsupported this type'
+        ).format(name=name, _type=_type, value=value))
         return value
     if not isinstance(value, instance_type):
         raise Exception(_(
@@ -82,24 +82,7 @@ def convert_value(name: str, value, _type, is_required, source, node):
         return value
     try:
         value = node.workflow_manage.generate_prompt(value)
-        if _type == 'int':
-            return int(value)
-        if _type == 'boolean':
-            value = 0 if ['0', '[]'].__contains__(value) else value
-            return bool(value)
-        if _type == 'float':
-            return float(value)
-        if _type == 'dict':
-            v = json.loads(value)
-            if isinstance(v, dict):
-                return v
-            raise Exception(_('type error'))
-        if _type == 'array':
-            v = json.loads(value)
-            if isinstance(v, list):
-                return v
-            raise Exception(_('type error'))
-        return value
+        return common_convert_value(_type, value)
     except Exception as e:
         raise Exception(
             _('Field: {name} Type: {_type} Value: {value} Type error').format(name=name, _type=_type,

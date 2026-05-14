@@ -1,6 +1,7 @@
-import { WorkflowKind } from './../../enums/application'
-import { WorkflowType, WorkflowMode } from '@/enums/application'
-import { t } from '@/locales'
+import {WorkflowKind} from './../../enums/application'
+import {WorkflowType, WorkflowMode} from '@/enums/application'
+import {t} from '@/locales'
+import call$ from 'dingtalk-jsapi/api/biz/telephone/call'
 
 export const startNode = {
   id: WorkflowType.Start,
@@ -18,7 +19,7 @@ export const startNode = {
         },
       ],
       globalFields: [
-        { label: t('workflow.nodes.startNode.currentTime'), value: 'time' },
+        {label: t('workflow.nodes.startNode.currentTime'), value: 'time'},
         {
           label: t('views.application.form.historyRecord.label'),
           value: 'history_context',
@@ -29,8 +30,8 @@ export const startNode = {
         },
       ],
     },
-    fields: [{ label: t('workflow.nodes.startNode.question'), value: 'question' }],
-    globalFields: [{ label: t('workflow.nodes.startNode.currentTime'), value: 'time' }],
+    fields: [{label: t('workflow.nodes.startNode.question'), value: 'question'}],
+    globalFields: [{label: t('workflow.nodes.startNode.currentTime'), value: 'time'}],
     showNode: true,
   },
 }
@@ -52,7 +53,7 @@ export const baseNode = {
     },
     config: {},
     showNode: true,
-    user_input_config: { title: t('chat.userInput') },
+    user_input_config: {title: t('chat.userInput')},
     user_input_field_list: [],
   },
 }
@@ -74,7 +75,7 @@ export const knowledgeBaseNode = {
     },
     config: {},
     showNode: true,
-    user_input_config: { title: t('chat.userInput') },
+    user_input_config: {title: t('chat.userInput')},
     user_input_field_list: [],
   },
 }
@@ -92,15 +93,15 @@ export const toolBaseNode = {
     node_data: {},
     config: {},
     showNode: true,
-    user_input_config: { title: t('chat.userInput') },
+    user_input_config: {title: t('chat.userInput')},
     user_input_field_list: [],
   },
 }
 export const toolStartNode = {
   id: WorkflowType.ToolStartNode,
   type: WorkflowType.ToolStartNode,
-  x: 360,
-  y: 2761.3875,
+  x: 280,
+  y: 3301,
   text: '',
   properties: {
     height: 728.375,
@@ -109,7 +110,7 @@ export const toolStartNode = {
     node_data: {},
     config: {},
     showNode: true,
-    user_input_config: { title: t('chat.userInput') },
+    user_input_config: {title: t('chat.userInput')},
     user_input_field_list: [],
   },
 }
@@ -942,7 +943,7 @@ export const toolLoopMenuNodes = [
   },
   {
     label: t('workflow.nodes.classify.businessLogic'),
-    list: [conditionNode, replyNode, loopContinueNode, loopBreakNode],
+    list: [conditionNode, formNode, replyNode, loopContinueNode, loopBreakNode],
   },
   {
     label: t('workflow.nodes.classify.dataProcessing'),
@@ -976,7 +977,13 @@ const toolMenuNodes = [
   },
   {
     label: t('views.knowledge.title'),
-    list: [searchKnowledgeNode, searchDocumentNode, rerankerNode, documentExtractNode],
+    list: [
+      searchKnowledgeNode,
+      searchDocumentNode,
+      rerankerNode,
+      documentExtractNode,
+      documentSplitNode,
+    ],
   },
   {
     label: t('workflow.nodes.classify.businessLogic'),
@@ -1016,6 +1023,42 @@ export const getMenuNodes = (workflowMode: WorkflowMode) => {
     return toolLoopMenuNodes
   }
 }
+export const workflowModelDict: any = {
+  [WorkflowMode.Application]: (node: any) => {
+    return (
+      ['application-node', 'tool-workflow-lib-node', 'tool-lib-node'].includes(node.type) &&
+      node?.properties?.node_data?.tool_type !== 'DATA_SOURCE'
+    )
+  },
+  [WorkflowMode.ApplicationLoop]: (node: any) => {
+    return (
+      ['application-node', 'tool-workflow-lib-node', 'tool-lib-node'].includes(node.type) &&
+      node?.properties?.node_data?.tool_type !== 'DATA_SOURCE'
+    )
+  },
+  [WorkflowMode.Knowledge]: (node: any) => {
+    console.log(['tool-workflow-lib-node', 'tool-lib-node'].includes(node))
+    return ['tool-workflow-lib-node', 'tool-lib-node'].includes(node.type)
+  },
+  [WorkflowMode.KnowledgeLoop]: (node: any) => {
+    return (
+      ['tool-workflow-lib-node', 'tool-lib-node'].includes(node.type) &&
+      node?.properties?.node_data?.tool_type !== 'DATA_SOURCE'
+    )
+  },
+  [WorkflowMode.Tool]: (node: any) => {
+    return (
+      ['tool-workflow-lib-node', 'tool-lib-node'].includes(node.type) &&
+      node?.properties?.node_data?.tool_type !== 'DATA_SOURCE'
+    )
+  },
+  [WorkflowMode.ToolLoop]: (node: any) => {
+    return (
+      ['tool-workflow-lib-node', 'tool-lib-node'].includes(node.type) &&
+      node?.properties?.node_data?.tool_type !== 'DATA_SOURCE'
+    )
+  },
+}
 
 /**
  * 工具配置数据
@@ -1043,14 +1086,13 @@ export const toolLibNode = {
  */
 export const toolWorkflowLibNode = {
   type: WorkflowType.ToolWorkflowLib,
-  text: t('workflow.nodes.toolWorlflowNode.text','工作流工具'),
-  label: t('workflow.nodes.toolWorlflowNode.label','工作流工具'),
+  text: t('workflow.nodes.toolWorlflowNode.text', '工作流工具'),
+  label: t('workflow.nodes.toolWorlflowNode.label', '工作流工具'),
   height: 170,
   properties: {
-    stepName: t('workflow.nodes.toolWorlflowNode.label','工作流工具'),
+    stepName: t('workflow.nodes.toolWorlflowNode.label', '工作流工具'),
     config: {
-      fields: [
-      ],
+      fields: [],
     },
   },
 }
@@ -1074,25 +1116,27 @@ export const applicationNode = {
 }
 
 export const compareList = [
-  { value: 'is_null', label: t('workflow.compare.is_null') },
-  { value: 'is_not_null', label: t('workflow.compare.is_not_null') },
-  { value: 'contain', label: t('workflow.compare.contain') },
-  { value: 'not_contain', label: t('workflow.compare.not_contain') },
-  { value: 'eq', label: t('workflow.compare.eq') },
-  { value: 'not_eq', label: t('workflow.compare.not_eq') },
-  { value: 'ge', label: t('workflow.compare.ge') },
-  { value: 'gt', label: t('workflow.compare.gt') },
-  { value: 'le', label: t('workflow.compare.le') },
-  { value: 'lt', label: t('workflow.compare.lt') },
-  { value: 'len_eq', label: t('workflow.compare.len_eq') },
-  { value: 'len_ge', label: t('workflow.compare.len_ge') },
-  { value: 'len_gt', label: t('workflow.compare.len_gt') },
-  { value: 'len_le', label: t('workflow.compare.len_le') },
-  { value: 'len_lt', label: t('workflow.compare.len_lt') },
-  { value: 'is_true', label: t('workflow.compare.is_true') },
-  { value: 'is_not_true', label: t('workflow.compare.is_not_true') },
-  { value: 'start_with', label: 'startWith' },
-  { value: 'end_with', label: 'endWith' },
+  {value: 'is_null', label: t('workflow.compare.is_null')},
+  {value: 'is_not_null', label: t('workflow.compare.is_not_null')},
+  {value: 'contain', label: t('workflow.compare.contain')},
+  {value: 'not_contain', label: t('workflow.compare.not_contain')},
+  {value: 'eq', label: t('workflow.compare.eq')},
+  {value: 'not_eq', label: t('workflow.compare.not_eq')},
+  {value: 'ge', label: t('workflow.compare.ge')},
+  {value: 'gt', label: t('workflow.compare.gt')},
+  {value: 'le', label: t('workflow.compare.le')},
+  {value: 'lt', label: t('workflow.compare.lt')},
+  {value: 'len_eq', label: t('workflow.compare.len_eq')},
+  {value: 'len_ge', label: t('workflow.compare.len_ge')},
+  {value: 'len_gt', label: t('workflow.compare.len_gt')},
+  {value: 'len_le', label: t('workflow.compare.len_le')},
+  {value: 'len_lt', label: t('workflow.compare.len_lt')},
+  {value: 'is_true', label: t('workflow.compare.is_true')},
+  {value: 'is_not_true', label: t('workflow.compare.is_not_true')},
+  {value: 'start_with', label: 'startWith'},
+  {value: 'end_with', label: 'endWith'},
+  {value: 'regex', label: t('workflow.compare.regex')},
+  {value: 'wildcard', label: t('workflow.compare.wildcard')},
 ]
 export const nodeDict: any = {
   [WorkflowType.AiChat]: aiChatNode,
@@ -1150,3 +1194,11 @@ export function isLastNode(nodeModel: any) {
     return false
   }
 }
+
+export const fileTooltip = JSON.stringify([
+  {
+    name: '上传文件的名称',
+    url: './oss/file/019d8ac3-e2c6-7ff2-8956-c9c98f0e11f4',
+    file_id: '019d8ac3-e2c6-7ff2-8956-c9c98f0e11f4'
+  }
+], null, 2)

@@ -18,6 +18,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError, ErrorDetail
 
 from application.flow.common import Answer, NodeChunk
+from application.long_term_memory import extract_long_term_memory
 from application.models import ApplicationChatUserStats
 from application.models import ChatRecord, ChatUserType
 from common.field.common import InstanceField
@@ -102,6 +103,15 @@ class WorkFlowPostHandler:
                 application_public_access_client.save()
         self.chat_info = None
 
+        extract_long_term_memory.apply_async(
+            args=(
+                workflow_body.get('workspace_id'),
+                workflow_body.get('application_id'),
+                workflow_body.get('chat_user_id'),
+            ),
+            countdown=1,
+        )
+
 
 class KnowledgeWorkflowPostHandler(WorkFlowPostHandler):
     def __init__(self, chat_info, knowledge_action_id):
@@ -128,6 +138,16 @@ def get_tool_workflow_state(workflow):
     return State.SUCCESS
 
 
+class ToolWorkflowCallPostHandler(WorkFlowPostHandler):
+    def __init__(self, chat_info, tool_id):
+        super().__init__(chat_info)
+        self.tool_id = tool_id
+
+    def handler(self, workflow):
+        self.chat_info = None
+        self.tool_id = None
+
+
 class ToolWorkflowPostHandler(WorkFlowPostHandler):
     def __init__(self, chat_info, tool_id):
         super().__init__(chat_info)
@@ -140,7 +160,12 @@ class ToolWorkflowPostHandler(WorkFlowPostHandler):
                             source_type=self.chat_info.source_type,
                             source_id=self.chat_info.source_id,
                             state=state,
+                            run_time=time.time() - workflow.context.get('start_time') if workflow.context.get(
+                                'start_time') is not None else 0,
                             meta={
+                                'input_field_list': workflow.get_input_field_list(),
+                                'output_field_list': workflow.get_output_field_list(),
+                                'input': workflow.get_input(),
                                 'output': workflow.out_context,
                                 'details': workflow.get_runtime_details(),
                                 'answer_text_list': workflow.get_answer_text_list()
@@ -283,6 +308,7 @@ class INode:
                                                                                              node.id]))),
                                                                      "utf-8")).hexdigest() + (
                                    "__" + str(salt) if salt is not None else '')
+        self.extra = {}
 
     def valid_args(self, node_params, flow_params):
         flow_params_serializer_class = self.get_flow_params_serializer_class()

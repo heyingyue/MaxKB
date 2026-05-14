@@ -605,8 +605,8 @@ msgid "Field: {name} No value set"
 msgstr "字段：{name} 未设置值"
 
 #: apps/application/flow/step_node/function_lib_node/impl/base_function_lib_node.py:59
-msgid "Field: {name} Type: {_type} Value: {value} Unsupported types"
-msgstr "字段：{name} 类型：{_type} 值：{value} 类型转换错误"
+msgid "Field: {name} Type: {_type} Value: {value} Unsupported this type"
+msgstr "字段：{name} 类型：{_type} 值：{value} 不支持该类型"
 
 #: apps/application/flow/step_node/function_lib_node/impl/base_function_lib_node.py:63
 #: apps/application/flow/step_node/function_lib_node/impl/base_function_lib_node.py:100
@@ -9292,3 +9292,87 @@ msgstr "文档不属于当前知识库"
 
 msgid "Move an application"
 msgstr "移动应用程序"
+
+msgid "Batch delete applications"
+msgstr "批量删除应用"
+
+msgid "Batch move applications"
+msgstr "批量移动应用"
+
+msgid "Batch delete knowledge"
+msgstr "批量删除知识库"
+
+msgid "Batch move knowledge"
+msgstr "批量移动知识库"
+
+msgid "Batch delete tools"
+msgstr "批量删除工具"
+
+msgid "Batch move tools"
+msgstr "批量移动工具"
+
+msgid "Model is not allowed to be empty"
+msgstr "模型不能为空"
+
+msgid "Not a valid zip file"
+msgstr "不是有效的 zip 文件"
+
+msgid "Not a valid KB export file, missing knowledge.json"
+msgstr "不是有效的知识库导出文件，缺少 knowledge.json"
+
+msgid "Not a valid KB export file, missing knowledge.xlsx"
+msgstr "不是有效的知识库导出文件，缺少 knowledge.xlsx"
+
+msgid "Tags"
+msgstr "标签"
+
+msgid "Hit handling method"
+msgstr "命中处理方式"
+
+msgid "Directly return similarity"
+msgstr "直接返回相似度"
+
+msgid "Paragraph is active"
+msgstr "分段是否启用"
+
+msgid "Document type"
+msgstr "文档类型"
+
+msgid "Document meta"
+msgstr "文档元数据"
+
+msgid "Export knowledge bundle"
+msgstr "导出知识库"
+
+msgid "Import knowledge bundle"
+msgstr "导入知识库"
+
+msgid "Export system knowledge bundle"
+msgstr "导出系统知识库"
+
+msgid "Export shared knowledge bundle"
+msgstr "导出共享知识库"
+
+msgid "Batch delete"
+msgstr "批量删除"
+
+msgid "Batch move"
+msgstr "批量移动"
+
+msgid "There is a circular dependency in the tool workflow"
+msgstr "工具工作流存在循环依赖"
+
+msgid "model_params_form must be a list"
+msgstr "model_params_form 必须是一个列表"
+
+msgid "The {index}th item in model_params_form must be a dictionary"
+msgstr "model_params_form 中的第 {index} 项必须是一个字典"
+
+msgid "The label field is required for the {index}th item in model_params_form"
+msgstr "model_params_form 中的第 {index} 项的 label 字段是必填项"
+
+msgid "Publish"
+msgstr "发布"
+
+msgid "token is required for EVENT triggers"
+msgstr "事件触发器必须设置 token"

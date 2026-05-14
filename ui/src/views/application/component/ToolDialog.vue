@@ -11,20 +11,20 @@
     <template #header="{ titleId, titleClass }">
       <div class="flex-between mb-8">
         <div class="flex">
-          <h4 :id="titleId" :class="titleClass" class="mr-8">
+          <h4 :id="titleId" :class="titleClass" class="mr-8 color-secondary">
             {{ $t('views.tool.settingTool') }}
           </h4>
         </div>
 
         <el-button link class="mr-24" @click="refresh">
-          <el-icon :size="18"><Refresh /></el-icon>
+          <el-icon :size="18" class="color-secondary"><Refresh /></el-icon>
         </el-button>
       </div>
     </template>
     <!-- 共享的知识库工作流中，只能查共享的工具，这里不需要展示左边的树，只需展示右边的内容   -->
     <LayoutContainer class="application-manage" :show-left="apiType !== 'systemShare'">
       <template #left>
-        <folder-tree
+        <FolderVirtualizedTree
           :data="folderList"
           :currentNodeKey="currentFolder?.id"
           @handleNodeClick="folderClickHandle"
@@ -32,7 +32,7 @@
           :canOperation="false"
           showShared
           :shareTitle="$t('views.shared.shared_tool')"
-          :treeStyle="{ height: 'calc(100vh - 240px)' }"
+          :treeStyle="{ height: 'calc(100vh - 294px)' }"
         />
       </template>
       <div class="layout-bg">
@@ -48,7 +48,7 @@
         </div>
 
         <el-scrollbar>
-          <div class="p-16-24 pt-0" style="height: calc(100vh - 200px)">
+          <div class="p-16-24 pt-0" style="height: calc(100vh - 268px)">
             <el-row :gutter="12" v-loading="apiLoading" v-if="searchData.length">
               <el-col :span="12" v-for="(item, index) in searchData" :key="index" class="mb-16">
                 <el-popover
@@ -279,6 +279,12 @@ function getFolder() {
 
 function getList() {
   const folder_id = currentFolder.value?.id || user.getWorkspaceId()
+  const query: any = {}
+  if (props.tool_type.includes(',')) {
+    query['tool_type_list'] = props.tool_type.split(',')
+  } else {
+    query['tool_type'] = props.tool_type
+  }
   loadSharedApi({
     type: 'tool',
     isShared: folder_id === 'share',
@@ -286,7 +292,7 @@ function getList() {
   })
     .getToolList({
       folder_id: folder_id,
-      tool_type: props.tool_type,
+      ...query,
     })
     .then((res: any) => {
       toolList.value = res.data?.tools || res.data || []

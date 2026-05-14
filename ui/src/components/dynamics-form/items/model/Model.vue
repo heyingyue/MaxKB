@@ -17,16 +17,29 @@
           :label="item.model_name"
           :value="item.model_id"
         >
-          <div class="flex">
+          <el-space :size="8">
             <span
-              v-html="relatedObject(providerList, providerName, 'provider')?.icon"
-              class="model-icon mr-8"
+              :innerHTML="relatedObject(providerList, providerName, 'provider')?.icon"
+              class="select-model-icon"
+              style="margin-top: -7px"
             >
             </span>
             <span>{{ item.model_name }}</span>
-          </div>
+          </el-space>
         </el-option>
       </el-option-group>
+      <template #label="{ label, value }">
+        <el-space :size="8" v-if="value">
+          <span
+            class="select-model-icon"
+            :innerHTML="relatedObject(providerList, getModelProvider(value), 'provider')?.icon"
+          >
+          </span>
+          <span>
+            <span>{{ label }}</span>
+          </span>
+        </el-space>
+      </template>
     </el-select>
     <div class="ml-4">
       <el-button @click="openParamSetting" :disabled="!model_value?.model_id">
@@ -40,7 +53,7 @@
 </template>
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { groupBy } from 'lodash'
+import { groupBy, flatMap } from 'lodash'
 import { relatedObject } from '@/utils/array'
 import type { FormField } from '../../type'
 import { providerList } from './provider-data'
@@ -69,6 +82,13 @@ const model_value = computed({
 const groupedOptions = computed(() => {
   const list = (props.formField.attrs?.provider_list as any[]) || []
   return groupBy(list, 'provider')
+})
+
+const getModelProvider = computed(() => {
+  return (id: string) => {
+    const item = flatMap(groupedOptions.value)?.find((item: any) => item.model_id === id)
+    return (item as any)?.provider || ''
+  }
 })
 
 const AIModeParamSettingDialogRef = ref<InstanceType<typeof AIModeParamSettingDialog>>()
@@ -114,10 +134,6 @@ const handleModelChange = (selectedId: string) => {
     &:hover {
       background-color: var(--el-fill-color-light);
     }
-  }
-
-  .model-icon {
-    width: 18px;
   }
 
   .check-icon {

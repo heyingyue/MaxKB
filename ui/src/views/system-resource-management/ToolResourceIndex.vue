@@ -34,6 +34,8 @@
             @change="getList"
             filterable
             clearable
+            remote
+            :remote-method="getUserList"
             style="width: 220px"
           >
             <el-option v-for="u in user_options" :key="u.id" :value="u.id" :label="u.nick_name" />
@@ -92,8 +94,9 @@
             <span v-else-if="scope.row.tool_type === 'DATA_SOURCE'">
               {{ $t('views.tool.dataSource.title') }}
             </span>
-            <span v-else-if="scope.row.tool_type === 'SKILL'">
-              Skills
+            <span v-else-if="scope.row.tool_type === 'SKILL'"> Skills </span>
+            <span v-else-if="scope.row.tool_type === 'WORKFLOW'">
+              {{ $t('views.tool.toolWorkflow.title') }}
             </span>
             <span v-else> {{ $t('views.tool.title') }} </span>
           </template>
@@ -297,7 +300,23 @@
                 </el-button>
               </span>
             </el-tooltip>
-
+            <el-tooltip
+              effect="dark"
+              :content="$t('common.edit')"
+              placement="top"
+              v-if="!row.template_id && row.tool_type === 'WORKFLOW' && permissionPrecise.edit()"
+            >
+              <span class="mr-8">
+                <el-button
+                  type="primary"
+                  text
+                  @click.stop="openCreateWorkflowDialog(row)"
+                  :title="$t('common.edit')"
+                >
+                  <AppIcon iconName="app-edit"></AppIcon>
+                </el-button>
+              </span>
+            </el-tooltip>
             <el-tooltip
               effect="dark"
               :content="$t('common.copy')"
@@ -321,6 +340,13 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item
+                    v-if="row.tool_type === 'WORKFLOW'"
+                    @click.stop="toWorkflow(row)"
+                  >
+                    <AppIcon iconName="app-workflow" class="color-secondary"></AppIcon>
+                    {{ $t('workflow.workflow') }}
+                  </el-dropdown-item>
                   <el-dropdown-item
                     v-if="row.init_field_list?.length > 0 && permissionPrecise.edit()"
                     @click.stop="configInitParams(row)"
@@ -357,7 +383,10 @@
 
                   <el-dropdown-item
                     @click.stop="openTriggerDrawer(row)"
-                    v-if="row.tool_type === 'CUSTOM' && permissionPrecise.trigger_read()"
+                    v-if="
+                      (row.tool_type === 'CUSTOM' || row.tool_type === 'WORKFLOW') &&
+                      permissionPrecise.trigger_read()
+                    "
                   >
                     <AppIcon iconName="app-trigger" class="color-secondary"></AppIcon>
                     {{ $t('views.trigger.title') }}
@@ -373,7 +402,10 @@
                   <el-dropdown-item
                     text
                     @click.stop="openToolRecordDrawer(row)"
-                    v-if="row.tool_type === 'CUSTOM' && permissionPrecise.record()"
+                    v-if="
+                      (row.tool_type === 'CUSTOM' || row.tool_type === 'WORKFLOW') &&
+                      permissionPrecise.record()
+                    "
                   >
                     <AppIcon iconName="app-schedule-report" class="color-secondary" />
                     {{ $t('common.ExecutionRecord.subTitle') }}
@@ -396,7 +428,11 @@
 
     <InitParamDrawer ref="InitParamDrawerRef" @refresh="refresh" />
     <ToolFormDrawer ref="ToolFormDrawerRef" @refresh="refresh" :title="ToolDrawertitle" />
-    <SkillToolFormDrawer ref="SkillToolFormDrawerRef" @refresh="refresh" :title="SkillToolDrawertitle" />
+    <SkillToolFormDrawer
+      ref="SkillToolFormDrawerRef"
+      @refresh="refresh"
+      :title="SkillToolDrawertitle"
+    />
     <McpToolFormDrawer ref="McpToolFormDrawerRef" @refresh="refresh" :title="McpToolDrawertitle" />
     <DataSourceToolFormDrawer
       ref="DataSourceToolFormDrawerRef"
@@ -407,16 +443,21 @@
     <McpToolConfigDialog ref="McpToolConfigDialogRef" @refresh="refresh" />
     <ResourceAuthorizationDrawer :type="SourceTypeEnum.TOOL" ref="ResourceAuthorizationDrawerRef" />
     <ResourceMappingDrawer ref="resourceMappingDrawerRef"></ResourceMappingDrawer>
-    <ToolRecordDrawer ref="toolRecordDrawerRef" />
+    <ExecutionRecordDrawer ref="toolRecordDrawerRef" />
     <ResourceTriggerDrawer
       ref="resourceTriggerDrawerRef"
       :source="SourceTypeEnum.TOOL"
     ></ResourceTriggerDrawer>
+    <WorkflowFormDialog
+      ref="workflowFormDialogRef"
+      :title="workflowFormDialogtitle"
+    ></WorkflowFormDialog>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, ref, reactive, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { cloneDeep } from 'lodash'
 import InitParamDrawer from '@/views/tool/component/InitParamDrawer.vue'
 import ToolResourceApi from '@/api/system-resource-management/tool'
@@ -426,6 +467,7 @@ import McpToolFormDrawer from '@/views/tool/McpToolFormDrawer.vue'
 import DataSourceToolFormDrawer from '@/views/tool/DataSourceToolFormDrawer.vue'
 import ResourceAuthorizationDrawer from '@/components/resource-authorization-drawer/index.vue'
 import ResourceTriggerDrawer from '@/views/trigger/ResourceTriggerDrawer.vue'
+import WorkflowFormDialog from '@/views/tool/WorkflowFormDialog.vue'
 import { t } from '@/locales'
 import { SourceTypeEnum } from '@/enums/common'
 import { resetUrl } from '@/utils/common'
@@ -438,11 +480,11 @@ import { MsgSuccess, MsgConfirm, MsgError } from '@/utils/message'
 import permissionMap from '@/permission'
 import McpToolConfigDialog from '@/views/tool/component/McpToolConfigDialog.vue'
 import ResourceMappingDrawer from '@/components/resource_mapping/index.vue'
-import ToolRecordDrawer from '@/views/tool/execution-record/TriggerRecordDrawer.vue'
-import SkillToolFormDrawer from "@/views/tool/SkillToolFormDrawer.vue";
+import ExecutionRecordDrawer from '@/views/tool-workflow/execution-record/ExecutionRecordDrawer.vue'
+import SkillToolFormDrawer from '@/views/tool/SkillToolFormDrawer.vue'
 
 const { user } = useStore()
-
+const router = useRouter()
 const search_type = ref('name')
 const search_form = ref<any>({
   name: '',
@@ -467,6 +509,10 @@ const type_options = ref<any[]>([
   {
     label: 'Skills',
     value: 'SKILL',
+  },
+  {
+    label: t('views.tool.toolWorkflow.title'),
+    value: 'WORKFLOW',
   },
 ])
 const source_options = ref<any[]>([
@@ -514,7 +560,7 @@ const openTriggerDrawer = (data: any) => {
 const ResourceAuthorizationDrawerRef = ref()
 
 function openAuthorization(item: any) {
-  ResourceAuthorizationDrawerRef.value.open(item.id)
+  ResourceAuthorizationDrawerRef.value.open(item.id, undefined, item.workspace_id)
 }
 
 function exportTool(row: any) {
@@ -600,7 +646,9 @@ function openCreateMcpDialog(data?: any) {
     return
   }
 
-  McpToolDrawertitle.value = data ? t('views.tool.mcp.editMcpTool') : t('views.tool.mcp.createMcpTool')
+  McpToolDrawertitle.value = data
+    ? t('views.tool.mcp.editMcpTool')
+    : t('views.tool.mcp.createMcpTool')
   if (data) {
     ToolResourceApi.getToolById(data?.id, loading).then((res: any) => {
       McpToolFormDrawerRef.value.open(res.data)
@@ -646,6 +694,24 @@ function openCreateSkillToolDialog(data?: any) {
   }
 }
 
+const workflowFormDialogRef = ref<InstanceType<typeof WorkflowFormDialog>>()
+const workflowFormDialogtitle = ref('')
+const openCreateWorkflowDialog = (data?: any) => {
+  // 有template_id的不允许编辑，是模板转换来的
+  if (data?.template_id) {
+    return
+  }
+
+  workflowFormDialogtitle.value = t('common.edit')
+  if (data) {
+    ToolResourceApi.getToolById(data?.id, loading).then((res: any) => {
+      workflowFormDialogRef.value?.open(res.data)
+    })
+  } else {
+    workflowFormDialogRef.value?.open(data)
+  }
+}
+
 const AddInternalToolDialogRef = ref<InstanceType<typeof AddInternalToolDialog>>()
 
 function addInternalTool(data?: any, isEdit?: boolean) {
@@ -687,6 +753,13 @@ async function changeState(row: any) {
     })
   } else {
     const res = await ToolResourceApi.getToolById(row.id, changeStateloading)
+    if (row.tool_type === 'WORKFLOW' && !res.data.is_publish) {
+      MsgConfirm(t('common.tip'), t('views.tool.toolWorkflow.toActiveTip')).then(() => {
+        toWorkflow(row)
+      })
+      return
+    }
+
     if (
       (!res.data.init_params || Object.keys(res.data.init_params).length === 0) &&
       res.data.init_field_list &&
@@ -709,6 +782,10 @@ async function changeState(row: any) {
         return false
       })
   }
+}
+
+function toWorkflow(data: any) {
+  router.push({ name: 'ToolWorkflow', params: { id: data.id, folderId: 'resource-management' } })
 }
 
 const filterText = ref('')
@@ -778,18 +855,26 @@ const openResourceMappingDrawer = (tool: any) => {
   resourceMappingDrawerRef.value?.open('TOOL', tool)
 }
 
-const toolRecordDrawerRef = ref<InstanceType<typeof ToolRecordDrawer>>()
+const toolRecordDrawerRef = ref<InstanceType<typeof ExecutionRecordDrawer>>()
 const openToolRecordDrawer = (data: any) => {
   toolRecordDrawerRef.value?.open(data)
+}
+
+function getUserList(query: string) {
+  UserApi.getAllMemberList(query ? {nick_name: query} : '')
+    .then((res: any) => {
+      user_options.value = res.data || []
+    })
+    .catch(() => {
+      user_options.value = []
+    })
 }
 
 onMounted(() => {
   getWorkspaceList()
   getList()
 
-  UserApi.getAllMemberList('').then((res: any) => {
-    user_options.value = res.data
-  })
+  getUserList('')
 })
 </script>
 

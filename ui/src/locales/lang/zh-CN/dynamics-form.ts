@@ -14,6 +14,8 @@ export default {
     TextareaInput: '多行文本框',
     MultiRow: '单行多选卡',
     Model: '模型',
+    Knowledge: '知识库',
+    TreeSelect: '树形选择器',
   },
   default: {
     label: '默认值',
@@ -49,6 +51,23 @@ export default {
       label: '组件类型',
       placeholder: '请选择组件类型',
       requiredMessage: '组建类型 为必填属性',
+    },
+    desc: {
+      label: '描述',
+      placeholder: '请输入描述',
+    },
+  },
+  TreeSelect: {
+    label: '树形选择器',
+    select: '选项',
+    selectRequired: '选项必填',
+    allowMultipleSelections: '允许多选',
+    addDialog: {
+      addFirstOption: '添加一级选项',
+      addSubOptions: '添加子选项',
+      require: '请至少填写一条完整数据',
+      nodeNotFound: '未找到父节点',
+      tagRequire: '标签和选项值不能为空',
     },
   },
   DatePicker: {
@@ -123,5 +142,15 @@ export default {
       popover_value: '值',
       popover_default: '是否为默认值',
     },
+  },
+  ModelConstructor: {
+    optionalModel: '可选模型',
+    defaultModel: '默认模型',
+    modelPlaceholder: '请选择模型',
+  },
+  KnowledgeConstructor: {
+    optionalKnowledge: '可选知识库',
+    optionalKnowledgePlaceholder: '请选择可选知识库',
+    defaultKnowledge: '默认知识库',
   },
 }

@@ -19,9 +19,10 @@ from application.flow.i_step_node import NodeResult, ToolWorkflowPostHandler, IN
 from application.flow.step_node.tool_workflow_lib_node.i_tool_workflow_lib_node import IToolWorkflowLibNode
 from application.models import ChatRecord
 from application.serializers.common import ToolExecute
+from common.database_model_manage.database_model_manage import DatabaseModelManage
 from common.exception.app_exception import ChatException
 from common.handle.impl.response.loop_to_response import LoopToResponse
-from tools.models import ToolWorkflowVersion
+from tools.models import ToolWorkflowVersion, Tool
 
 
 def _write_context(node_variable: Dict, workflow_variable: Dict, node: INode, workflow, answer: str,
@@ -115,17 +116,32 @@ def write_context_stream(node_variable: Dict, workflow_variable: Dict, node: INo
     child_answer_data = get_answer_list(instance, child_node_node_dict, node.runtime_node_id)
     node.context['usage'] = {'usage': usage}
     node.context['child_node'] = node_child_node
-    node.context['child_node_data'] = instance.get_runtime_details()
+    node.context['details'] = instance.get_runtime_details()
     node.context['is_interrupt_exec'] = is_interrupt_exec
-    node.context['child_node_data'] = instance.get_runtime_details()
     node.context['child_answer_data'] = child_answer_data
     node.context['run_time'] = time.time() - node.context.get("start_time")
+    node.extra['input_field_list'] = instance.get_input_field_list()
+    node.extra['output_field_list'] = instance.get_output_field_list()
+    node.extra['input'] = instance.get_input()
+    node.extra['output'] = instance.out_context
     for key, value in instance.out_context.items():
         node.context[key] = value
 
 
 def _is_interrupt_exec(node, node_variable: Dict, workflow_variable: Dict):
     return node.context.get('is_interrupt_exec', False)
+
+
+def valid_function(tool_lib, workspace_id):
+    if tool_lib is None:
+        raise Exception(_('Tool does not exist'))
+    get_authorized_tool = DatabaseModelManage.get_model("get_authorized_tool")
+    if tool_lib and tool_lib.workspace_id != workspace_id and get_authorized_tool is not None:
+        tool_lib = get_authorized_tool(QuerySet(Tool).filter(id=tool_lib.id), workspace_id).first()
+    if tool_lib is None:
+        raise Exception(_("Tool does not exist"))
+    if not tool_lib.is_active:
+        raise Exception(_("Tool is not active"))
 
 
 class BaseToolWorkflowLibNodeNode(IToolWorkflowLibNode):
@@ -144,9 +160,15 @@ class BaseToolWorkflowLibNodeNode(IToolWorkflowLibNode):
 
     def save_context(self, details, workflow_manage):
         self.context['child_answer_data'] = details.get('child_answer_data')
-        self.context['child_node_data'] = details.get('child_node_data')
+        self.context['details'] = details.get('details')
+        self.extra['input_field_list'] = details.get('input_field_list')
+        self.extra['output_field_list'] = details.get('input_field_list')
+        self.extra['input'] = details.get('input')
+        self.extra['output'] = details.get('output')
         self.context['result'] = details.get('result')
         self.context['exception_message'] = details.get('err_message')
+        for key, value in (details.get('output') or {}).items():
+            self.context[key] = value
         if self.node_params.get('is_result'):
             self.answer_text = str(details.get('result'))
 
@@ -167,6 +189,8 @@ class BaseToolWorkflowLibNodeNode(IToolWorkflowLibNode):
             '-create_time')[0:1].first()
         if tool_workflow_version is None:
             raise ChatException(500, _("The tool has not been published. Please use it after publishing."))
+        tool_lib = QuerySet(Tool).filter(id=tool_lib_id).first()
+        valid_function(tool_lib, workspace_id)
         parameters = self.get_parameters(input_field_list)
         tool_record_id = (self.node_params.get('child_node') or {}).get('chat_record_id') or str(uuid.uuid7())
         took_execute = ToolExecute(tool_lib_id, tool_record_id,
@@ -210,7 +234,11 @@ class BaseToolWorkflowLibNodeNode(IToolWorkflowLibNode):
             'run_time': self.context.get('run_time'),
             'type': self.node.type,
             'status': self.status,
-            'child_node_data': self.context.get("child_node_data"),
+            'input': self.extra.get('input'),
+            'output': self.extra.get('output'),
+            'input_field_list': self.extra.get('input_field_list'),
+            'output_field_list': self.extra.get('output_field_list'),
+            'details': self.context.get("details"),
             'child_answer_data': self.context.get("child_answer_data"),
             'err_message': self.err_message,
             'enableException': self.node.properties.get('enableException'),

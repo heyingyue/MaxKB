@@ -62,16 +62,16 @@ def generate_content(input_variable, variable_list):
     return value
 
 
-def json_loads(response, expected_fields):
+def json_loads(response, variable_list):
     if not response or not isinstance(response, str):
-        return {field: None for field in expected_fields}
+        return generate_example(variable_list)
 
     cleaned = response.strip()
 
     extraction_strategies = [
         lambda: json.loads(cleaned),
         lambda: json.loads(re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned, re.DOTALL).group(1)),
-        lambda: json.loads(re.search(r'(\{[\s\S]*\})', cleaned).group(1)),
+        lambda: json.loads(re.search(r'(\{.*\})', cleaned, flags=re.DOTALL).group(1)),
     ]
     for strategy in extraction_strategies:
         try:
@@ -79,7 +79,7 @@ def json_loads(response, expected_fields):
             return result
         except:
             continue
-    return generate_example(expected_fields)
+    return generate_example(variable_list)
 
 
 class BaseParameterExtractionNode(IParameterExtractionNode):
@@ -94,11 +94,16 @@ class BaseParameterExtractionNode(IParameterExtractionNode):
     def execute(self, input_variable, variable_list, model_params_setting, model_id, **kwargs) -> NodeResult:
         input_variable = str(input_variable)
         self.context['request'] = input_variable
-        if model_params_setting is None:
+
+        if not model_id:
+            raise Exception(_('Model is not allowed to be empty'))
+
+        if model_params_setting is None and model_id:
             model_params_setting = get_default_model_params_setting(model_id)
         workspace_id = self.workflow_manage.get_body().get('workspace_id')
         chat_model = get_model_instance_by_model_workspace_id(model_id, workspace_id,
-                                                              **model_params_setting)
+                                                              **(model_params_setting or {}))
+
         content = generate_content(input_variable, variable_list)
         response = chat_model.invoke([HumanMessage(content=content)])
         result = json_loads(response.content, variable_list)

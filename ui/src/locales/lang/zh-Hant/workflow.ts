@@ -40,6 +40,7 @@ export default {
     paramErrorMessage: '參數已存在: ',
     saveMessage: '當前修改未保存，是否保存後退出？',
     searchPlaceholder: '請輸入節點名稱',
+    disabled: '该节点已被禁用',
   },
   delete: {
     confirmTitle: '確定刪除該節點？',
@@ -60,6 +61,7 @@ export default {
     ReferencingRequired: '引用變量必填',
     ReferencingError: '引用變量錯誤',
     NoReferencing: '不存在的引用變量',
+    placeholder_key: '請輸入鍵名',
     placeholder: '請選擇變量',
     inputPlaceholder: '請輸入變量',
     loop: '循環變量',
@@ -85,6 +87,10 @@ export default {
     loopNodeBreakNodeRequired: '無限循環必須存在 Break 節點',
   },
   nodes: {
+    toolWorlflowNode: {
+      label: '工作流工具',
+      text: '工作流工具',
+    },
     knowledgeWriteNode: {
       label: '知識庫寫入',
       text: '將輸入的分段列表寫入當前知識庫，並完成向量化處理',
@@ -322,7 +328,8 @@ export default {
       text: '按聚合策略聚合每組的變量',
       Strategy: '聚合策略',
       placeholder: '返回每組的第一個非空值',
-      placeholder1: '返回每組變量的集合',
+      placeholder1: '返回每組變量的數組（Array）',
+      placeholder2: '返回每組變量的字典（Dict）',
       group: {
         noneError: '名稱不能為空',
         dupError: '名稱不能重複',
@@ -490,7 +497,8 @@ export default {
       expression: {
         label: '表達式',
         placeholder: '請輸入表達式',
-        tooltip: '請使用 JSON Path 表達式拆分變量，例如：$.store.book',
+        tooltip:
+          '請使用 JSON Path 表達式拆分變量，例如：$.store.book <a href="https://pypi.org/project/jsonpath-ng/1.8.0/" target="_blank" class="expression_tip">點擊查看詳情 ➜ pypi.org</a>',
       },
     },
     parameterExtractionNode: {
@@ -521,6 +529,8 @@ export default {
     len_lt: '長度小於',
     is_true: '為真',
     is_not_true: '不為真',
+    regex: '正則匹配',
+    wildcard: '通配符匹配',
   },
   SystemPromptPlaceholder: '系統提示詞，可以引用系統中的變量：如',
   UserPromptPlaceholder: '用戶提示詞，可以引用系統中的變量：如',

@@ -12,14 +12,14 @@ import traceback
 
 import uuid_utils.compat as uuid
 from django.db.models import QuerySet
-from django.utils.translation import gettext as _
 
+from common.utils.common import common_convert_value
 from common.utils.logger import maxkb_logger
 from common.utils.rsa_util import rsa_long_decrypt
 from common.utils.tool_code import ToolExecutor
 from knowledge.models.knowledge_action import State
-from tools.models import Tool, ToolRecord, ToolTaskTypeChoices
-from trigger.handler.base_task import BaseTriggerTask
+from tools.models import ToolRecord, ToolTaskTypeChoices, ToolType
+from trigger.handler.impl.task.tool_task.common import BaseToolTriggerTask
 from trigger.models import TaskRecord
 
 executor = ToolExecutor()
@@ -43,37 +43,13 @@ def get_field_value(value, kwargs):
         return get_reference(value.get('value'), kwargs)
 
 
-def _convert_value(_type, value):
-    if value is None:
-        return None
-
-    if _type == 'int':
-        return int(value)
-    if _type == 'boolean':
-        value = 0 if ['0', '[]'].__contains__(value) else value
-        return bool(value)
-    if _type == 'float':
-        return float(value)
-    if _type == 'dict':
-        v = json.loads(value)
-        if isinstance(v, dict):
-            return v
-        raise Exception(_('type error'))
-    if _type == 'array':
-        v = json.loads(value)
-        if isinstance(v, list):
-            return v
-        raise Exception(_('type error'))
-    return value
-
-
 def get_tool_execute_parameters(input_field_list, parameter_setting, kwargs):
     type_map = {f.get("name"): f.get("type") for f in (input_field_list or []) if f.get("name")}
 
     parameters = {}
     for key, value in parameter_setting.items():
         raw = get_field_value(value, kwargs)
-        parameters[key] = _convert_value(type_map.get(key), raw)
+        parameters[key] = common_convert_value(type_map.get(key), raw)
     return parameters
 
 
@@ -108,20 +84,16 @@ def _get_result_detail(result):
     return result_dict
 
 
-class ToolTask(BaseTriggerTask):
-    def support(self, trigger_task, **kwargs):
-        return trigger_task.get('source_type') == 'TOOL'
+class ToolTask(BaseToolTriggerTask):
+    def support(self, tool, trigger_task, **kwargs):
+        return tool.tool_type == ToolType.CUSTOM
 
-    def execute(self, trigger_task, **kwargs):
+    def execute(self, tool, trigger_task, **kwargs):
         parameter_setting = trigger_task.get('parameter')
         tool_id = trigger_task.get('source_id')
         task_record_id = uuid.uuid7()
         start_time = time.time()
         try:
-            tool = QuerySet(Tool).filter(id=tool_id, is_active=True).first()
-            if not tool:
-                maxkb_logger.info(f"Tool with id {tool_id} not found or inactive.")
-                return
 
             TaskRecord(
                 id=task_record_id,

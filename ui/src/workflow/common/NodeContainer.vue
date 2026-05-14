@@ -20,6 +20,7 @@
               class="mr-8"
               :size="24"
               :item="nodeModel?.properties.node_data"
+              style="--el-avatar-border-radius: 6px"
             />
             <h4
               class="ellipsis-1 break-all"
@@ -69,6 +70,24 @@
                   <el-dropdown-item @click="copyNode" class="p-8">{{
                     $t('common.copy')
                   }}</el-dropdown-item>
+                  <template
+                    v-if="
+                      !(
+                        (nodeModel.type == 'tool-lib-node' &&
+                          nodeModel['properties'].kind == WorkflowKind.DataSource) ||
+                        nodeModel.type == 'data-source-local-node' ||
+                        nodeModel.type == 'data-source-web-node'
+                      )
+                    "
+                  >
+                    <el-dropdown-item v-if="nodeDisabled" @click="enable()" class="p-8">{{
+                      $t('common.status.enable')
+                    }}</el-dropdown-item>
+                    <el-dropdown-item v-else @click="disable()" class="p-8">{{
+                      $t('common.status.disable')
+                    }}</el-dropdown-item></template
+                  >
+
                   <el-dropdown-item @click="deleteNode" class="border-t p-8">{{
                     $t('common.delete')
                   }}</el-dropdown-item>
@@ -79,6 +98,14 @@
         </div>
         <el-collapse-transition>
           <div @mousedown.stop @keydown.stop @click.stop v-show="showNode" class="mt-16">
+            <el-alert
+              v-if="nodeDisabled"
+              class="mb-16"
+              :title="$t('workflow.tip.disabled')"
+              type="error"
+              show-icon
+              :closable="false"
+            />
             <el-alert
               v-if="node_status != 200"
               class="mb-16"
@@ -237,6 +264,21 @@ const dropdownMenuStyle = computed(() => {
       ? anchorData.value.y - props.nodeModel.y + props.nodeModel.height / 2 + 'px'
       : '0px',
   }
+})
+const disable = () => {
+  nodeDisabled.value = true
+}
+const enable = () => {
+  nodeDisabled.value = false
+}
+
+const nodeDisabled = computed({
+  get: () => {
+    return props.nodeModel.properties.disabled || false
+  },
+  set: (v: boolean) => {
+    set(props.nodeModel.properties, 'disabled', v)
+  },
 })
 const titleFormRef = ref()
 const nodeNameDialogVisible = ref<boolean>(false)
@@ -439,6 +481,8 @@ function showOperate(type: string) {
     WorkflowType.Base,
     WorkflowType.KnowledgeBase,
     WorkflowType.LoopStartNode.toString(),
+    WorkflowType.ToolBaseNode,
+    WorkflowType.ToolStartNode,
   ].includes(type)
 }
 

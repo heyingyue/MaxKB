@@ -1,7 +1,8 @@
-import { Result } from '@/request/Result'
-import { get, post } from '@/request/index'
-import type { User, ResetPasswordRequest, CheckCodeRequest } from '@/api/type/user'
-import type { Ref } from 'vue'
+import {Result} from '@/request/Result'
+import {get, post} from '@/request/index'
+import type {User, ResetPasswordRequest, CheckCodeRequest} from '@/api/type/user'
+import type {Ref} from 'vue'
+
 /**
  * 获取用户基本信息
  * @param loading 接口加载器
@@ -20,20 +21,21 @@ const getProfile: (loading?: Ref<boolean>) => Promise<Result<any>> = (loading) =
 /**
  * 获取全部用户
  */
-const getUserList: (loading?: Ref<boolean>) => Promise<Result<Record<string, any>[]>> = (
+const getUserList: (arg?: any, loading?: Ref<boolean>) => Promise<Result<Record<string, any>[]>> = (
+  arg,
   loading,
 ) => {
-  return get('/user/list', undefined, loading)
+  return get('/user/list', arg, loading)
 }
 
 /**
  * 获取全部用户
  */
-const getAllMemberList: (arg: string, loading?: Ref<boolean>) => Promise<Result<Record<string, any>[]>> = (
+const getAllMemberList: (arg: any, loading?: Ref<boolean>) => Promise<Result<Record<string, any>[]>> = (
   arg,
   loading,
 ) => {
-  return get('/user/list', undefined, loading)
+  return get('/user/list', arg, loading)
 }
 
 /**
@@ -60,7 +62,7 @@ const sendEmit: (
   type: 'register' | 'reset_password',
   loading?: Ref<boolean>,
 ) => Promise<Result<boolean>> = (email, type, loading) => {
-  return post('/user/send_email', { email, type }, undefined, loading)
+  return post('/user/send_email', {email, type}, undefined, loading)
 }
 
 /**
@@ -78,15 +80,15 @@ const postResetPassword: (
 
 /**
  * 重置密码
- * @param request 重置密码请求参数
+ * @param data 重置密码请求参数
  * @param loading 接口加载器
  * @returns
  */
 const resetCurrentPassword: (
-  request: ResetPasswordRequest,
+  data: any,
   loading?: Ref<boolean>,
-) => Promise<Result<boolean>> = (request, loading) => {
-  return post('/user/current/reset_password', request, undefined, loading)
+) => Promise<Result<boolean>> = (data, loading) => {
+  return post('/user/current/reset_password', data, undefined, loading)
 }
 
 export default {

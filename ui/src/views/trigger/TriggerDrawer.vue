@@ -505,7 +505,7 @@
       </el-form-item>
     </el-form>
     <ApplicationDialog @refresh="applicationRefresh" ref="applicationDialogRef"></ApplicationDialog>
-    <ToolDialog @refresh="toolRefresh" ref="toolDialogRef"></ToolDialog>
+    <ToolDialog @refresh="toolRefresh" ref="toolDialogRef" tool_type="CUSTOM,WORKFLOW"></ToolDialog>
     <template #footer>
       <el-button @click="close">{{ $t('common.cancel') }}</el-button>
       <el-button v-if="!is_edit || editPermission" type="primary" @click="submit">{{
@@ -520,10 +520,8 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { copyClick } from '@/utils/clipboard'
 import ApplicationDialog from '@/views/application/component/ApplicationDialog.vue'
 import ToolDialog from '@/views/application/component/ToolDialog.vue'
-import applicationAPI from '@/api/application/application'
 import triggerAPI from '@/api/trigger/trigger'
 import systemManageTriggerAPI from '@/api/system-resource-management/trigger'
-import toolAPI from '@/api/tool/tool'
 import ToolParameter from '@/views/trigger/component/ToolParameter.vue'
 import ApplicationParameter from '@/views/trigger/component/ApplicationParameter.vue'
 import { resetUrl } from '@/utils/common.ts'
@@ -621,7 +619,7 @@ const validateCron = () => {
   }
   const fields = cron.split(/\s+/)
   if (fields.length !== 5 || !isValidCron(cron)) {
-    cronError.value = 'Cron表达式不合法'
+    cronError.value = t('views.application.longTermMemory.cronExpressionInvalid')
   } else {
     cronError.value = ''
   }

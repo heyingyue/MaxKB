@@ -20,10 +20,12 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db.models import QuerySet
 from django.utils.translation import gettext as _
 
+from application.flow.common import WorkflowMode
 from application.flow.i_step_node import NodeResult
 from application.flow.step_node.tool_lib_node.i_tool_lib_node import IToolLibNode
 from common.database_model_manage.database_model_manage import DatabaseModelManage
 from common.exception.app_exception import AppApiException
+from common.utils.common import common_convert_value
 from common.utils.logger import maxkb_logger
 from common.utils.rsa_util import rsa_long_decrypt
 from common.utils.tool_code import ToolExecutor
@@ -56,26 +58,24 @@ def get_field_value(debug_field_list, name, is_required):
 
 
 def valid_reference_value(_type, value, name):
-    try:
-        if _type == 'int':
-            instance_type = int | float
-        elif _type == 'boolean':
-            instance_type = bool
-        elif _type == 'float':
-            instance_type = float | int
-        elif _type == 'dict':
-            value = json.loads(value) if isinstance(value, str) else value
-            instance_type = dict
-        elif _type == 'array':
-            value = json.loads(value) if isinstance(value, str) else value
-            instance_type = list
-        elif _type == 'string':
-            instance_type = str
-        else:
-            raise Exception(_(
-                'Field: {name} Type: {_type} Value: {value} Unsupported types'
-            ).format(name=name, _type=_type))
-    except:
+    if _type == 'int':
+        instance_type = int | float
+    elif _type == 'boolean':
+        instance_type = bool
+    elif _type == 'float':
+        instance_type = float | int
+    elif _type == 'dict':
+        value = json.loads(value) if isinstance(value, str) else value
+        instance_type = dict
+    elif _type == 'array':
+        value = json.loads(value) if isinstance(value, str) else value
+        instance_type = list
+    elif _type == 'string':
+        instance_type = str
+    else:
+        maxkb_logger.error(_(
+            'Field: {name} Type: {_type} Value: {value} Unsupported this type'
+        ).format(name=name, _type=_type, value=value))
         return value
     if not isinstance(value, instance_type):
         raise Exception(_(
@@ -106,24 +106,7 @@ def convert_value(name: str, value, _type, is_required, source, node):
         return value
     try:
         value = node.workflow_manage.generate_prompt(value)
-        if _type == 'int':
-            return int(value)
-        if _type == 'boolean':
-            value = 0 if ['0', '[]'].__contains__(value) else value
-            return bool(value)
-        if _type == 'float':
-            return float(value)
-        if _type == 'dict':
-            v = json.loads(value)
-            if isinstance(v, dict):
-                return v
-            raise Exception(_('type error'))
-        if _type == 'array':
-            v = json.loads(value)
-            if isinstance(v, list):
-                return v
-            raise Exception(_('type error'))
-        return value
+        return common_convert_value(_type, value)
     except Exception as e:
         raise Exception(
             _('Field: {name} Type: {_type} Value: {value} Type error').format(name=name, _type=_type,
@@ -250,6 +233,7 @@ class BaseToolLibNodeNode(IToolLibNode):
     def tool_exec_record(self, tool_lib, all_params):
         task_record_id = uuid.uuid7()
         start_time = time.time()
+        filtered_args = all_params
         try:
             # 过滤掉 tool_init_params 中的参数
             tool_init_params = json.loads(rsa_long_decrypt(tool_lib.init_params)) if tool_lib.init_params else {}
@@ -258,16 +242,23 @@ class BaseToolLibNodeNode(IToolLibNode):
                     k: v for k, v in all_params.items()
                     if k not in tool_init_params
                 }
+            if [WorkflowMode.KNOWLEDGE, WorkflowMode.KNOWLEDGE_LOOP].__contains__(
+                    self.workflow_manage.flow.workflow_mode):
+                source_id = self.workflow_manage.params.get('knowledge_id')
+                source_type = ToolTaskTypeChoices.KNOWLEDGE.value
+            elif [WorkflowMode.TOOL, WorkflowMode.TOOL_LOOP].__contains__(self.workflow_manage.flow.workflow_mode):
+                source_id = self.workflow_manage.params.get('tool_id')
+                source_type = ToolTaskTypeChoices.TOOL.value
             else:
-                filtered_args = all_params
+                source_id = self.workflow_manage.params.get('application_id')
+                source_type = ToolTaskTypeChoices.APPLICATION.value
+
             ToolRecord(
                 id=task_record_id,
                 workspace_id=tool_lib.workspace_id,
                 tool_id=tool_lib.id,
-                source_type=ToolTaskTypeChoices.KNOWLEDGE.value if self.workflow_manage.params.get(
-                    'knowledge_id') else ToolTaskTypeChoices.APPLICATION.value,
-                source_id=self.workflow_manage.params.get('knowledge_id') or self.workflow_manage.params.get(
-                    'application_id'),
+                source_type=source_type,
+                source_id=source_id,
                 meta={'input': filtered_args, 'output': {}},
                 state=State.STARTED
             ).save()

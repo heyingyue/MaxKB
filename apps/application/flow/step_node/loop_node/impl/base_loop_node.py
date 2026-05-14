@@ -7,6 +7,7 @@
     @desc:
 """
 import time
+import uuid
 from typing import Dict, List
 
 from django.utils.translation import gettext as _
@@ -172,7 +173,7 @@ def loop(workflow_manage_new_instance, node: INode, generate_loop):
             content_chunk = (chunk.get('content', '') or '')
             reasoning_content_chunk = (chunk.get('reasoning_content', '') or '')
             if chunk.get('real_node_id'):
-                chunk['real_node_id'] = chunk['real_node_id'] + '__' + str(index)
+                chunk['real_node_id'] = chunk['real_node_id'] + '__' + node.runtime_node_id + '__' + str(index)
             reasoning_content += reasoning_content_chunk
             answer += content_chunk
             yield chunk
@@ -215,10 +216,10 @@ def loop(workflow_manage_new_instance, node: INode, generate_loop):
 def get_tokens(loop_node_data):
     message_tokens = 0
     answer_tokens = 0
-    for details in loop_node_data:
-        message_tokens += sum([row.get('message_tokens') for row in details.values() if
+    for details in (loop_node_data or {}):
+        message_tokens += sum([row.get('message_tokens') or 0 for row in details.values() if
                                'message_tokens' in row and row.get('message_tokens') is not None])
-        answer_tokens += sum([row.get('answer_tokens') for row in details.values() if
+        answer_tokens += sum([row.get('answer_tokens') or 0 for row in details.values() if
                               'answer_tokens' in row and row.get('answer_tokens') is not None])
     return {'message_tokens': message_tokens, 'answer_tokens': answer_tokens}
 
@@ -269,6 +270,8 @@ class BaseLoopNode(ILoopNode):
         from application.flow.loop_workflow_manage import LoopWorkflowManage, Workflow
         from application.flow.knowledge_loop_workflow_manage import KnowledgeLoopWorkflowManage
         from application.flow.tool_loop_workflow_manage import ToolLoopWorkflowManage
+        self.node_params['is_result'] = True
+
         def workflow_manage_new_instance(loop_data, global_data, start_node_id=None,
                                          start_node_data=None, chat_record=None, child_node=None):
             workflow_mode = {WorkflowMode.APPLICATION: WorkflowMode.APPLICATION_LOOP,

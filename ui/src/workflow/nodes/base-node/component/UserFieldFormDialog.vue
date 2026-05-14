@@ -7,6 +7,7 @@
     :destroy-on-close="true"
     :before-close="close"
     append-to-body
+    align-center
   >
     <DynamicsFormConstructor
       v-model="currentRow"
@@ -134,6 +135,8 @@ const inputTypeList = ref([
   { label: t('dynamicsForm.input_type_list.TextareaInput'), value: 'TextareaInputConstructor' },
   { label: t('dynamicsForm.input_type_list.MultiRow'), value: 'MultiRowConstructor' },
   { label: t('dynamicsForm.input_type_list.Model'), value: 'ModelConstructor' },
+  { label: t('dynamicsForm.input_type_list.Knowledge'), value: 'KnowledgeConstructor' },
+  { label: t('dynamicsForm.input_type_list.TreeSelect'), value: 'TreeSelectConstructor' },
 ])
 
 const dialogVisible = ref<boolean>(false)

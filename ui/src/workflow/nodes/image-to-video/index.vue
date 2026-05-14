@@ -13,10 +13,13 @@
       >
         <el-form-item
           :label="$t('workflow.nodes.imageToVideoGenerate.model.label')"
-          prop="model_id"
+          :prop="form_data.model_id_type === 'reference' ? 'model_id_reference' : 'model_id'"
           :rules="{
             required: true,
-            message: $t('workflow.nodes.imageToVideoGenerate.model.requiredMessage'),
+            message:
+              form_data.model_id_type === 'reference'
+                ? $t('workflow.variable.placeholder')
+                : $t('workflow.nodes.imageToVideoGenerate.model.requiredMessage'),
             trigger: 'change',
           }"
         >
@@ -24,35 +27,56 @@
             <div class="flex-between w-full">
               <div>
                 <span
-                  >{{ $t('workflow.nodes.imageToVideoGenerate.model.label')
+                >{{
+                    $t('workflow.nodes.imageToVideoGenerate.model.label')
                   }}<span class="color-danger">*</span></span
                 >
               </div>
+              <el-select
+                v-model="form_data.model_id_type"
+                :teleported="false"
+                size="small"
+                style="width: 85px"
+                @change="form_data.model_id_reference = []"
+              >
+                <el-option :label="$t('workflow.variable.Referencing')" value="reference"/>
+                <el-option :label="$t('common.custom')" value="custom"/>
+              </el-select>
+            </div>
+          </template>
+          <div class="flex-between w-full" v-if="form_data.model_id_type !== 'reference'">
+            <ModelSelect
+              @change="model_change"
+              @wheel="wheel"
+              :teleported="false"
+              v-model="form_data.model_id"
+              @focus="getSelectModel"
+              :placeholder="$t('workflow.nodes.imageToVideoGenerate.model.requiredMessage')"
+              :options="modelOptions"
+              showFooter
+              :model-type="'ITV'"
+            ></ModelSelect>
+            <div class="ml-8">
               <el-button
                 :disabled="!form_data.model_id"
-                type="primary"
-                link
                 @click="openAIParamSettingDialog(form_data.model_id)"
                 @refreshForm="refreshParam"
               >
-                <AppIcon iconName="app-setting"></AppIcon>
+                <el-icon>
+                  <Operation/>
+                </el-icon>
               </el-button>
             </div>
-          </template>
-
-          <ModelSelect
-            @change="model_change"
-            @wheel="wheel"
-            :teleported="false"
-            v-model="form_data.model_id"
-            @focus="getSelectModel"
-            :placeholder="$t('workflow.nodes.imageToVideoGenerate.model.requiredMessage')"
-            :options="modelOptions"
-            showFooter
-            :model-type="'ITV'"
-          ></ModelSelect>
+          </div>
+          <NodeCascader
+            v-else
+            ref="modelReferenceCascaderRef"
+            :nodeModel="nodeModel"
+            class="w-full"
+            :placeholder="$t('workflow.variable.placeholder')"
+            v-model="form_data.model_id_reference"
+          />
         </el-form-item>
-
         <el-form-item
           :label="$t('workflow.nodes.imageToVideoGenerate.prompt.label')"
           prop="prompt"
@@ -66,13 +90,14 @@
             <div class="flex align-center">
               <div class="mr-4">
                 <span
-                  >{{ $t('workflow.nodes.imageToVideoGenerate.prompt.label')
+                >{{
+                    $t('workflow.nodes.imageToVideoGenerate.prompt.label')
                   }}<span class="color-danger">*</span></span
                 >
               </div>
               <el-tooltip effect="dark" placement="right" popper-class="max-w-200">
                 <template #content
-                  >{{ $t('workflow.nodes.imageToVideoGenerate.prompt.tooltip') }}
+                >{{ $t('workflow.nodes.imageToVideoGenerate.prompt.tooltip') }}
                 </template>
                 <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
               </el-tooltip>
@@ -102,7 +127,7 @@
               </div>
               <el-tooltip effect="dark" placement="right" popper-class="max-w-200">
                 <template #content
-                  >{{ $t('workflow.nodes.imageToVideoGenerate.negative_prompt.tooltip') }}
+                >{{ $t('workflow.nodes.imageToVideoGenerate.negative_prompt.tooltip') }}
                 </template>
                 <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
               </el-tooltip>
@@ -118,7 +143,6 @@
           />
         </el-form-item>
         <el-form-item
-          :label="$t('workflow.nodes.imageToVideoGenerate.first_frame.label')"
           :rules="{
             type: 'array',
             required: true,
@@ -126,12 +150,26 @@
             trigger: 'change',
           }"
         >
-          <template #label
-            >{{ $t('workflow.nodes.imageToVideoGenerate.first_frame.label')
-            }}<span class="color-danger">*</span></template
-          >
+          <div class="flex align-center">
+            <div>
+                <span
+                >{{
+                    $t('workflow.nodes.imageToVideoGenerate.first_frame.label')
+                  }}<span class="color-danger">*</span></span
+                >
+            </div>
+            <el-tooltip effect="dark" placement="right" >
+              <template #content>
+                <div style="white-space: pre-wrap; font-family: monospace;">{{
+                    fileTooltip
+                  }}
+                </div>
+              </template>
+              <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
+            </el-tooltip>
+          </div>
           <NodeCascader
-            ref="nodeCascaderRef"
+            ref="firstFrameCascaderRef"
             :nodeModel="nodeModel"
             class="w-full"
             :placeholder="$t('workflow.nodes.imageToVideoGenerate.first_frame.requiredMessage')"
@@ -139,7 +177,6 @@
           />
         </el-form-item>
         <el-form-item
-          :label="$t('workflow.nodes.imageToVideoGenerate.last_frame.label')"
           :rules="{
             type: 'array',
             required: false,
@@ -147,11 +184,26 @@
             trigger: 'change',
           }"
         >
-          <template #label
-            >{{ $t('workflow.nodes.imageToVideoGenerate.last_frame.label') }}
-          </template>
+          <div class="flex align-center">
+            <div>
+                <span
+                >{{
+                    $t('workflow.nodes.imageToVideoGenerate.last_frame.label')
+                  }}</span
+                >
+            </div>
+            <el-tooltip effect="dark" placement="right" >
+              <template #content>
+                <div style="white-space: pre-wrap; font-family: monospace;">{{
+                    fileTooltip
+                  }}
+                </div>
+              </template>
+              <AppIcon iconName="app-warning" class="app-warning-icon"></AppIcon>
+            </el-tooltip>
+          </div>
           <NodeCascader
-            ref="nodeCascaderRef"
+            ref="lastFrameCascaderRef"
             :nodeModel="nodeModel"
             class="w-full"
             :placeholder="$t('workflow.nodes.imageToVideoGenerate.last_frame.requiredMessage')"
@@ -162,7 +214,14 @@
         <el-form-item
           :label="$t('workflow.nodes.aiChatNode.returnContent.label')"
           @click.prevent
-          v-if="[WorkflowMode.Application, WorkflowMode.ApplicationLoop].includes(workflowMode)"
+          v-if="
+            [
+              WorkflowMode.Application,
+              WorkflowMode.ApplicationLoop,
+              WorkflowMode.Tool,
+              WorkflowMode.ToolLoop,
+            ].includes(workflowMode)
+          "
         >
           <template #label>
             <div class="flex align-center">
@@ -177,31 +236,33 @@
               </el-tooltip>
             </div>
           </template>
-          <el-switch size="small" v-model="form_data.is_result" />
+          <el-switch size="small" v-model="form_data.is_result"/>
         </el-form-item>
       </el-form>
     </el-card>
-    <AIModeParamSettingDialog ref="AIModeParamSettingDialogRef" @refresh="refreshParam" />
+    <AIModeParamSettingDialog ref="AIModeParamSettingDialogRef" @refresh="refreshParam"/>
   </NodeContainer>
 </template>
 
 <script setup lang="ts">
 import NodeContainer from '@/workflow/common/NodeContainer.vue'
-import { computed, nextTick, onMounted, ref, inject } from 'vue'
-import { groupBy, set } from 'lodash'
-import type { FormInstance } from 'element-plus'
+import {computed, nextTick, onMounted, ref, inject} from 'vue'
+import {groupBy, set} from 'lodash'
+import type {FormInstance} from 'element-plus'
 import AIModeParamSettingDialog from '@/views/application/component/AIModeParamSettingDialog.vue'
-import { t } from '@/locales'
-import { useRoute } from 'vue-router'
-import { loadSharedApi } from '@/utils/dynamics-api/shared-api'
+import {t} from '@/locales'
+import {useRoute} from 'vue-router'
+import {loadSharedApi} from '@/utils/dynamics-api/shared-api'
 import NodeCascader from '@/workflow/common/NodeCascader.vue'
-import { WorkflowMode } from '@/enums/application'
+import {WorkflowMode} from '@/enums/application'
+import {fileTooltip} from "@/workflow/common/data.ts";
+
 const workflowMode = (inject('workflowMode') as WorkflowMode) || WorkflowMode.Application
 const getResourceDetail = inject('getResourceDetail') as any
 const route = useRoute()
 
 const {
-  params: { id },
+  params: {id},
 } = route as any
 
 const apiType = computed(() => {
@@ -219,9 +280,17 @@ const modelOptions = ref<any>(null)
 const AIModeParamSettingDialogRef = ref<InstanceType<typeof AIModeParamSettingDialog>>()
 
 const aiChatNodeFormRef = ref<FormInstance>()
+const firstFrameCascaderRef = ref()
+const lastFrameCascaderRef = ref()
+const modelReferenceCascaderRef = ref()
+
 const validate = () => {
-  return aiChatNodeFormRef.value?.validate().catch((err) => {
-    return Promise.reject({ node: props.nodeModel, errMessage: err })
+  return Promise.all([
+    firstFrameCascaderRef.value?.validate() ?? Promise.resolve(''),
+    modelReferenceCascaderRef.value?.validate() ?? Promise.resolve(''),
+    aiChatNodeFormRef.value?.validate(),
+  ]).catch((err: any) => {
+    return Promise.reject({node: props.nodeModel, errMessage: err})
   })
 }
 
@@ -239,6 +308,8 @@ const defaultPrompt = `{{${t('workflow.nodes.startNode.label')}.question}}`
 
 const form = {
   model_id: '',
+  model_id_type: 'custom',
+  model_id_reference: [],
   system: '',
   prompt: defaultPrompt,
   negative_prompt: '',
@@ -254,6 +325,12 @@ const form = {
 const form_data = computed({
   get: () => {
     if (props.nodeModel.properties.node_data) {
+      if (!props.nodeModel.properties.node_data.model_id_type) {
+        set(props.nodeModel.properties.node_data, 'model_id_type', 'custom')
+      }
+      if (!props.nodeModel.properties.node_data.model_id_reference) {
+        set(props.nodeModel.properties.node_data, 'model_id_reference', [])
+      }
       return props.nodeModel.properties.node_data
     } else {
       set(props.nodeModel.properties, 'node_data', form)
@@ -271,13 +348,13 @@ function getSelectModel() {
   const obj =
     apiType.value === 'systemManage'
       ? {
-          model_type: 'ITV',
-          workspace_id: resource.value?.workspace_id,
-        }
+        model_type: 'ITV',
+        workspace_id: resource.value?.workspace_id,
+      }
       : {
-          model_type: 'ITV',
-        }
-  loadSharedApi({ type: 'model', systemType: apiType.value })
+        model_type: 'ITV',
+      }
+  loadSharedApi({type: 'model', systemType: apiType.value})
     .getSelectModelList(obj)
     .then((res: any) => {
       modelOptions.value = groupBy(res?.data, 'provider')

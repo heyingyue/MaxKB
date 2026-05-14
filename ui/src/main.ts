@@ -13,8 +13,10 @@ import Components from '@/components'
 import directives from '@/directives'
 import { getDefaultWhiteList } from 'xss'
 import { config, XSSPlugin } from 'md-editor-v3'
-import screenfull from 'screenfull'
 
+import { supPopover } from '@/utils/supPopover'
+
+import screenfull from 'screenfull'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
@@ -56,7 +58,9 @@ config({
               whiteList: Object.assign({}, getDefaultWhiteList(), {
                 video: ['src', 'controls', 'width', 'height', 'preload', 'playsinline'],
                 source: ['src', 'type'],
+                a: ['href', 'style'],
                 input: ['class', 'disabled', 'type', 'checked'],
+                sup: ['data-title'],
                 iframe: [
                   'class',
                   'width',
@@ -89,6 +93,7 @@ config({
     ]
   },
 })
+supPopover.init()
 const app = createApp(App)
 app.use(createPinia())
 for (const [key, component] of Object.entries(ElementPlusIcons)) {

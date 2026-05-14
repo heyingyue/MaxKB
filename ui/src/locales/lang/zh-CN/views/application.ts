@@ -18,6 +18,7 @@ export default {
   },
   delete: {
     confirmTitle: '是否删除智能体：',
+    confirmTitle2: '个智能体?',
     confirmMessage: '删除后该智能体将不再提供服务，请谨慎操作。',
     resourceCountMessage: '此智能体关联 {count} 个资源，删除后无法使用，请谨慎操作。',
   },
@@ -30,6 +31,20 @@ export default {
     noDocPermission: '无文档创建权限',
     confirmUse: '确定使用',
     overwrite: '覆盖当前工作流',
+  },
+  longTermMemory: {
+    title: '长期记忆',
+    setting: '长期记忆设置',
+    triggerType: '触发方式',
+    roundTrigger: '按轮次触发',
+    roundTriggerTip: '累计到N轮后，自动提炼N轮对话，生成记忆',
+    triggerInterval: '触发间隔',
+    scheduledTrigger: '按时间触发',
+    scheduledTriggerTip: '到设定时间后，自动提炼周期内所有对话，生成记忆',
+    cronExpressionInvalid: 'Cron表达式不合法',
+    tips1: `开启后，从开启时间记录新对话并按周期生成记忆，可通过`,
+    tips2: `变量在系统提示词中调用。
+关闭后，将清空对话用户的长期记忆，再次开启将重新从开启时点开始累积。`,
   },
   form: {
     appName: {
@@ -59,7 +74,7 @@ export default {
     roleSettings: {
       label: '系统提示词',
       placeholder:
-        '系统提示词，可以引用系统中的变量：{data} 是命中知识库中的分段；{question} 是用户提出的问题。',
+        '系统提示词，可以引用系统中的变量：{data} 是命中知识库中的分段；{question} 是用户提出的问题，{memory}开启长期记忆后的用户记忆。',
       tooltip: '设定模型扮演的角色或遵循的指令',
     },
 
@@ -130,7 +145,7 @@ export default {
     continue: '继续生成',
     replace: '替换',
     exit: '确认退出并舍弃 AI 生成的内容吗？',
-    loading: '生成中...',
+    loading: '生成中',
   },
   dialog: {
     addKnowledge: '添加关联知识库',

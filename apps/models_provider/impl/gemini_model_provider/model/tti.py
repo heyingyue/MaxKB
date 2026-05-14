@@ -4,6 +4,7 @@ from typing import Dict
 from openai import OpenAI
 
 from common.config.tokenizer_manage_config import TokenizerManage
+from common.utils.logger import maxkb_logger
 from models_provider.base_model_provider import MaxKBBaseModel
 from models_provider.impl.base_tti import BaseTextToImage
 
@@ -51,7 +52,7 @@ class GeminiTextToImage(MaxKBBaseModel, BaseTextToImage):
         from google.genai import types
         from PIL import Image
         file_urls = []
-        client = genai.Client(api_key=self.api_key, http_options={"base_url": self.base_url}, **self.params)
+        client = genai.Client(api_key=self.api_key, http_options={"base_url": self.base_url})
         if self.model.startswith('imagen'):
             config = types.GenerateImagesConfig(**self.params)
 
@@ -67,7 +68,9 @@ class GeminiTextToImage(MaxKBBaseModel, BaseTextToImage):
                 img_base64 = base64.b64encode(generated_image.image.image_bytes).decode("utf-8")
                 file_urls.append(f'data:{generated_image.image.mime_type};base64,{img_base64}')
         else:
-            config = types.GenerateContentConfig(**self.params)
+            config = types.GenerateContentConfig(image_config=types.ImageConfig(
+                **self.params
+            ))
             if negative_prompt:
                 config.negative_prompt = negative_prompt
             response = client.models.generate_content(
@@ -78,7 +81,7 @@ class GeminiTextToImage(MaxKBBaseModel, BaseTextToImage):
 
             for part in response.parts:
                 if part.text is not None:
-                    print(part.text)
+                    maxkb_logger.info(part.text)
                 elif part.inline_data is not None:
                     image_bytes = part.inline_data.data
                     img_base64 = base64.b64encode(image_bytes).decode("utf-8")

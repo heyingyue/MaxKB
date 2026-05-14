@@ -23,13 +23,22 @@
           @blur="form.field = form.field.trim()"
         />
       </el-form-item>
-      <el-form-item :label="$t('dynamicsForm.paramForm.name.label')">
+      <el-form-item :label="$t('dynamicsForm.paramForm.name.label')" prop="label">
         <el-input
           v-model="form.label"
           :placeholder="$t('dynamicsForm.paramForm.name.placeholder')"
           :maxlength="128"
           show-word-limit
           @blur="form.label = form.label?.trim()"
+        />
+      </el-form-item>
+      <el-form-item :label="$t('dynamicsForm.paramForm.desc.label')">
+        <el-input
+          v-model="form.desc"
+          :placeholder="$t('dynamicsForm.paramForm.desc.placeholder')"
+          :maxlength="128"
+          show-word-limit
+          @blur="form.desc = form.desc?.trim()"
         />
       </el-form-item>
       <el-form-item :label="$t('views.tool.form.dataType.label')">
@@ -66,6 +75,7 @@ const form = ref<any>({
   field: '',
   type: typeOptions[0],
   label: '',
+  desc: '',
   is_required: true,
 })
 
@@ -74,6 +84,13 @@ const rules = reactive({
     {
       required: true,
       message: t('views.tool.form.paramName.placeholder'),
+      trigger: 'blur',
+    },
+  ],
+  label: [
+    {
+      required: true,
+      message: t('dynamicsForm.paramForm.name.placeholder'),
       trigger: 'blur',
     },
   ],

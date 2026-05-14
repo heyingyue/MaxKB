@@ -1,5 +1,5 @@
 <template>
-  <div class="layout-container flex h-full">
+  <div class="layout-container flex h-full" :class="isCollapse ? 'layout-container__collapse' : ''">
     <div
       :class="`layout-container__left border-r ${isCollapse ? 'hidden' : ''}`"
       :style="{ width: isCollapse ? 0 : `${leftWidth}px` }"
@@ -11,9 +11,9 @@
       <el-tooltip
         :content="isCollapse ? $t('common.expand') : $t('common.collapse')"
         placement="right"
+        v-if="props.showCollapse"
       >
         <el-button
-          v-if="props.showCollapse"
           class="collapse"
           size="small"
           circle
@@ -149,6 +149,11 @@ onUnmounted(() => {
   &__right {
     flex: 1;
     overflow: hidden;
+  }
+  &__collapse {
+    :deep(.mul-operation) {
+      width: 100% !important;
+    }
   }
 }
 </style>

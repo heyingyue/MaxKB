@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+
 from contextlib import contextmanager
 from contextlib import suppress
 from textwrap import dedent
@@ -25,16 +26,11 @@ from maxkb.const import PROJECT_DIR
 
 _enable_sandbox = bool(int(CONFIG.get('SANDBOX', 0)))
 _run_user = 'sandbox' if _enable_sandbox else getpass.getuser()
-_sandbox_path = CONFIG.get("SANDBOX_HOME", '/opt/maxkb-app/sandbox') if _enable_sandbox else os.path.join(PROJECT_DIR,
-                                                                                                          'data',
-                                                                                                          'sandbox')
+_sandbox_path = CONFIG.get("SANDBOX_HOME", '/opt/maxkb-app/sandbox') if _enable_sandbox else os.path.join(PROJECT_DIR, 'data', 'sandbox')
 _sandbox_python_sys_path = CONFIG.get_sandbox_python_package_paths().split(',')
 _process_limit_timeout_seconds = int(CONFIG.get("SANDBOX_PYTHON_PROCESS_LIMIT_TIMEOUT_SECONDS", '3600'))
-_process_limit_cpu_cores = min(max(int(CONFIG.get("SANDBOX_PYTHON_PROCESS_LIMIT_CPU_CORES", '1')), 1),
-                               len(os.sched_getaffinity(0))) if sys.platform.startswith(
-    "linux") else os.cpu_count()  # 只支持linux，window和mac不支持
+_process_limit_cpu_cores = min(max(int(CONFIG.get("SANDBOX_PYTHON_PROCESS_LIMIT_CPU_CORES", '1')), 1), len(os.sched_getaffinity(0))) if sys.platform.startswith("linux") else os.cpu_count()  # 只支持linux，window和mac不支持
 _process_limit_mem_mb = int(CONFIG.get("SANDBOX_PYTHON_PROCESS_LIMIT_MEM_MB", '256'))
-
 
 class ToolExecutor:
 
@@ -48,8 +44,7 @@ class ToolExecutor:
             return
         try:
             # 只初始化一次
-            fd = os.open(os.path.join(PROJECT_DIR, 'tmp', 'tool_executor_init_dir.lock'),
-                         os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            fd = os.open(os.path.join(PROJECT_DIR, 'tmp', 'tool_executor_init_dir.lock'), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.close(fd)
         except FileExistsError:
             # 文件已存在 → 已初始化过
@@ -70,6 +65,7 @@ class ToolExecutor:
             os.remove(sandbox_conf_file_path)
         banned_hosts = CONFIG.get("SANDBOX_PYTHON_BANNED_HOSTS", '').strip()
         allow_dl_paths = CONFIG.get("SANDBOX_PYTHON_ALLOW_DL_PATHS",'').strip()
+        allow_dl_open = CONFIG.get("SANDBOX_PYTHON_ALLOW_DL_OPEN",'0')
         allow_subprocess = CONFIG.get("SANDBOX_PYTHON_ALLOW_SUBPROCESS", '0')
         allow_syscall = CONFIG.get("SANDBOX_PYTHON_ALLOW_SYSCALL", '0')
         if banned_hosts:
@@ -77,9 +73,10 @@ class ToolExecutor:
             local_ip = socket.gethostbyname(hostname)
             banned_hosts = f"{banned_hosts},{local_ip}"
             banned_hosts = ",".join(s.strip() for s in banned_hosts.split(",") if s.strip() and s.strip().lower() != hostname.lower())
-        with open(sandbox_conf_file_path, "w") as f:
+        with open(sandbox_conf_file_path, "w", encoding='utf-8') as f:
             f.write(f"SANDBOX_PYTHON_BANNED_HOSTS={banned_hosts}\n")
             f.write(f"SANDBOX_PYTHON_ALLOW_DL_PATHS={','.join(sorted(set(filter(None, sys.path + _sandbox_python_sys_path + allow_dl_paths.split(',')))))}\n")
+            f.write(f"SANDBOX_PYTHON_ALLOW_DL_OPEN={allow_dl_open}\n")
             f.write(f"SANDBOX_PYTHON_ALLOW_SUBPROCESS={allow_subprocess}\n")
             f.write(f"SANDBOX_PYTHON_ALLOW_SYSCALL={allow_syscall}\n")
         os.system(f"chmod -R 550 {_sandbox_path}")
@@ -100,39 +97,41 @@ try:
     path_to_exclude = ['/opt/py3/lib/python3.11/site-packages', '/opt/maxkb-app/apps']
     sys.path = [p for p in sys.path if p not in path_to_exclude]
     sys.path += {_sandbox_python_sys_path}
-    locals_v={{}}
-    keywords={keywords}
-    globals_v={{}}
+    _id = os.environ.get("_ID")
+    locals_v = {{}}
+    keywords = {keywords}
+    globals_v = {{}}
     {set_run_user}
     os.environ.clear()
     with redirect_stdout(open(os.devnull, 'w')):
         exec({dedent(code_str)!a}, globals_v, locals_v)
         f_name, f = {action_function}
         globals_v.update(locals_v)
-        exec_result=f(**keywords)
-    sys.stdout.write("\\n{_id}:")
+        exec_result = f(**keywords)
+    sys.stdout.write("\\n" + _id)
     json.dump({{'code':200,'msg':'success','data':exec_result}}, sys.stdout, default=str)
 except Exception as e:
     if isinstance(e, MemoryError): e = Exception("Cannot allocate more memory: exceeded the limit of {_process_limit_mem_mb} MB.")
-    sys.stdout.write("\\n{_id}:")
+    sys.stdout.write("\\n" + _id)
     json.dump({{'code':500,'msg':str(e),'data':None}}, sys.stdout, default=str)
-sys.stdout.write("\\n")
+sys.stdout.write("\\n" + _id + "__END__\\n")
 sys.stdout.flush()
 """
-        maxkb_logger.debug(f"Sandbox execute code: {_exec_code}")
+        maxkb_logger.debug(f"Tool execution({_id}) execute code: {_exec_code}")
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=True) as f:
             f.write(_exec_code)
             f.flush()
             with execution_timer(_id):
-                subprocess_result = self._exec(f.name)
+                subprocess_result = self._exec(f.name, _id)
         if subprocess_result.returncode != 0:
             raise Exception(subprocess_result.stderr or subprocess_result.stdout or "Unknown exception occurred")
         lines = subprocess_result.stdout.splitlines()
-        result_line = [line for line in lines if line.startswith(_id)]
-        if not result_line:
-            maxkb_logger.error("\n".join(lines))
+        if len(lines) < 2 or lines[-1] != f"{_id}__END__":
+            raise Exception("Execution interrupted or tampered")
+        last_line = lines[-2]
+        if not last_line.startswith(_id):
             raise Exception("No result found.")
-        result = json.loads(result_line[-1].split(":", 1)[1])
+        result = json.loads(last_line[len(_id):])
         if result.get('code') == 200:
             return result.get('data')
         raise Exception(result.get('msg') + (f'\n{subprocess_result.stderr}' if subprocess_result.stderr else ''))
@@ -181,15 +180,40 @@ sys.stdout.flush()
                             # 如果某个参数没有默认值,需要添加 None 占位
                             defaults.append(ast.Constant(value=None))
                     node.args.defaults = defaults
+                # 将不支持 JSON Schema 的参数类型注解替换为 Any，
+                # 避免 FastMCP/Pydantic 生成 schema 时崩溃（如 requests.Response）
+                _safe_annotation_names = {
+                    'str', 'int', 'float', 'bool', 'dict', 'list', 'tuple',
+                    'set', 'bytes', 'Any', 'Optional', 'Union', 'List',
+                    'Dict', 'Tuple', 'Set', 'Sequence', 'None', 'NoneType',
+                }
 
+                def _is_safe_annotation(node_ann):
+                    if node_ann is None:
+                        return True
+                    if isinstance(node_ann, ast.Constant):
+                        return True
+                    if isinstance(node_ann, ast.Name):
+                        return node_ann.id in _safe_annotation_names
+                    if isinstance(node_ann, ast.Attribute):
+                        # e.g. requests.Response, typing.Optional — treat none as safe
+                        return False
+                    if isinstance(node_ann, (ast.Subscript, ast.BinOp)):
+                        # e.g. Optional[str], str | None — recurse
+                        if isinstance(node_ann, ast.Subscript):
+                            return _is_safe_annotation(node_ann.value) and _is_safe_annotation(node_ann.slice)
+                        return _is_safe_annotation(node_ann.left) and _is_safe_annotation(node_ann.right)
+                    return False
+
+                for arg in node.args.args:
+                    if not _is_safe_annotation(arg.annotation):
+                        arg.annotation = ast.Name(id='Any', ctx=ast.Load())
                 # 修改返回类型注解为 Result
                 node.returns = ast.Name(id='Result', ctx=ast.Load())
-
                 # 修改 return 语句为 return Result(result=..., tool_id=...)
                 class ReturnTransformer(ast.NodeTransformer):
                     def __init__(self, func_name):
                         self.func_name = func_name
-
                     def visit_Return(self, node):
                         if node.value is None:
                             # return 语句没有返回值
@@ -216,18 +240,15 @@ sys.stdout.flush()
                                 )
                             )
                         return ast.copy_location(new_return, node)
-
                 transformer = ReturnTransformer(node.name)
                 node = transformer.visit(node)
                 ast.fix_missing_locations(node)
-
                 func_code = ast.unparse(node)
                 # 有些模型不支持name是中文,例如: deepseek, 其他模型未知
                 escaped_desc = (name + ' ' + description).replace('\n', ' ').replace("'", " ")
                 functions.append(f"@mcp.tool(description='{escaped_desc}')\n{func_code}\n")
             else:
                 other_code.append(ast.unparse(node))
-
         # 构建完整的 MCP 服务器代码
         code_parts = ["from mcp.server.fastmcp import FastMCP"]
         code_parts.extend(imports)
@@ -286,9 +307,10 @@ exec({dedent(code)!a})
         }
         return app_config
 
-    def _exec(self, execute_file):
+    def _exec(self, execute_file, _id):
         kwargs = {'cwd': BASE_DIR, 'env': {
             'LD_PRELOAD': f'{_sandbox_path}/lib/sandbox.so',
+            '_ID': _id,
         }}
         def _set_resource_limit():
             if not _enable_sandbox or not sys.platform.startswith("linux"): return
@@ -312,7 +334,6 @@ exec({dedent(code)!a})
         for server, config in servers.items():
             if config.get('transport') not in ['sse', 'streamable_http']:
                 raise Exception(_('Only support transport=sse or transport=streamable_http'))
-
 
 @contextmanager
 def execution_timer(id=""):

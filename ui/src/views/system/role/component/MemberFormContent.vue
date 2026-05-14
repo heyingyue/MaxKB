@@ -21,15 +21,19 @@
                 : true
             "
             filterable
+            remote
+            :remote-method="(query: any) => handleRemoteSearch(query, element, model)"
+            :filter-method="!model.selectProps?.remoteMethod ? (query: any) => filterLocalOptions(query, element, model) : undefined"
+            :loading="loadingStates[`${index}-${model.path}`]"
             multiple
             :reserve-keyword="false"
             style="width: 100%"
             collapse-tags
             collapse-tags-tooltip
-            v-bind="model.selectProps"
+            v-bind="getSelectProps(model)"
           >
             <el-option
-              v-for="opt in model.selectProps?.options"
+              v-for="opt in getOptions(element, model)"
               :key="opt.value"
               :label="opt.label"
               :value="opt.value"
@@ -65,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch, computed} from 'vue'
+import {computed, reactive, ref, watch} from 'vue'
 import type {FormItemModel} from '@/api/type/role'
 
 const props = withDefaults(defineProps<{
@@ -85,9 +89,52 @@ const form = defineModel<Record<string, any>[]>('form', {
   default: [],
 })
 
+const loadingStates = reactive<Record<string, boolean>>({})
+
 const selectedRoles = computed(() => {
   return form.value.map((item) => item.role_id)
 })
+
+function getOptions(element: any, model: FormItemModel) {
+  const dynamicOptions = element[`_${model.path}_options`]
+  // 检查是否已经设置过动态选项（包括空数组）
+  if (element.hasOwnProperty(`_${model.path}_options`)) {
+    return dynamicOptions
+  }
+  return model.selectProps?.options || []
+}
+
+function getSelectProps(model: FormItemModel) {
+  const {options, ...restProps} = model.selectProps || {}
+  return restProps
+}
+
+async function handleRemoteSearch(query: string, element: any, model: FormItemModel) {
+  if (!model.selectProps?.remoteMethod) {
+    return
+  }
+
+  const key = `${form.value.indexOf(element)}-${model.path}`
+  loadingStates[key] = true
+
+  try {
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    element[`_${model.path}_options`] = await model.selectProps.remoteMethod(query, element)
+  } catch (error) {
+    console.error('Remote search failed:', error)
+    element[`_${model.path}_options`] = []
+  } finally {
+    loadingStates[key] = false
+  }
+}
+
+async function filterLocalOptions(query: string, element: any, model: FormItemModel) {
+  const options = model.selectProps?.options || []
+  element[`_${model.path}_options`] = options.filter((opt: any) =>
+    opt.label.toLowerCase().includes(query.toLowerCase()),
+  )
+}
 
 function handleAdd() {
   form.value.push({...formItem})

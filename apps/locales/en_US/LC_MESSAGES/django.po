@@ -595,7 +595,7 @@ msgstr ""
 
 #: apps/application/flow/step_node/function_lib_node/impl/base_function_lib_node.py:59
 #, python-brace-format
-msgid "Field: {name} Type: {_type} Value: {value} Unsupported types"
+msgid "Field: {name} Type: {_type} Value: {value} Unsupported this type"
 msgstr ""
 
 #: apps/application/flow/step_node/function_lib_node/impl/base_function_lib_node.py:63
@@ -9169,3 +9169,87 @@ msgstr "Document does not belong to current knowledge"
 
 msgid "Move an application"
 msgstr "Move an application"
+
+msgid "Batch delete applications"
+msgstr "Batch delete applications"
+
+msgid "Batch move applications"
+msgstr "Batch move applications"
+
+msgid "Batch delete knowledge"
+msgstr "Batch delete knowledge"
+
+msgid "Batch move knowledge"
+msgstr "Batch move knowledge"
+
+msgid "Batch delete tools"
+msgstr "Batch delete tools"
+
+msgid "Batch move tools"
+msgstr "Batch move tools"
+
+msgid "Model is not allowed to be empty"
+msgstr ""
+
+msgid "Not a valid zip file"
+msgstr "Not a valid zip file"
+
+msgid "Not a valid KB export file, missing knowledge.json"
+msgstr "Not a valid KB export file, missing knowledge.json"
+
+msgid "Not a valid KB export file, missing knowledge.xlsx"
+msgstr "Not a valid KB export file, missing knowledge.xlsx"
+
+msgid "Tags"
+msgstr "Tags"
+
+msgid "Hit handling method"
+msgstr "Hit handling method"
+
+msgid "Directly return similarity"
+msgstr "Directly return similarity"
+
+msgid "Paragraph is active"
+msgstr "Paragraph is active"
+
+msgid "Document type"
+msgstr "Document type"
+
+msgid "Document meta"
+msgstr "Document meta"
+
+msgid "Export knowledge bundle"
+msgstr "Export knowledge bundle"
+
+msgid "Import knowledge bundle"
+msgstr "Import knowledge bundle"
+
+msgid "Export system knowledge bundle"
+msgstr "Export system knowledge bundle"
+
+msgid "Export shared knowledge bundle"
+msgstr "Export shared knowledge bundle"
+
+msgid "Batch delete"
+msgstr "Batch delete"
+
+msgid "Batch move"
+msgstr "Batch move"
+
+msgid "There is a circular dependency in the tool workflow"
+msgstr "There is a circular dependency in the tool workflow"
+
+msgid "model_params_form must be a list"
+msgstr ""
+
+msgid "The {index}th item in model_params_form must be a dictionary"
+msgstr ""
+
+msgid "The label field is required for the {index}th item in model_params_form"
+msgstr ""
+
+msgid "Publish"
+msgstr ""
+
+msgid "token is required for EVENT triggers"
+msgstr ""

@@ -170,20 +170,34 @@
         </el-table-column>
       </el-table>
 
-      <h4 class="title-decoration-1 mb-16">
-        {{ $t('views.tool.form.param.code') }}
-        <span class="color-danger" style="margin-left: -10px">*</span>
-        <el-text type="info" class="color-secondary">
-          {{ $t('views.tool.form.param.paramInfo2') }}
-        </el-text>
-      </h4>
+      <div class="flex-between mb-16">
+        <h4 class="title-decoration-1">
+          {{ $t('views.tool.form.param.code') }}
+          <span class="color-danger" style="margin-left: -10px">*</span>
+          <el-text type="info" class="color-secondary">
+            {{ $t('views.tool.form.param.paramInfo2') }}
+          </el-text>
+        </h4>
+        <el-button type="primary" @click="openGenerateCodeDialog" link>
+          <AppIcon iconName="app-generate-star" class="mr-4"></AppIcon>
+          {{ $t('views.application.generateDialog.label') }}
+        </el-button>
+      </div>
 
       <div class="mb-8" v-if="showEditor">
         <CodemirrorEditor
           :title="$t('views.tool.form.param.code')"
           v-model="form.code"
           @submitDialog="submitCodemirrorEditor"
-        />
+          :replaceCode="replaceCode"
+        >
+          <template #header-extra>
+            <el-button type="primary" link @click="openGenerateCodeDialog">
+              <AppIcon iconName="app-generate-star" class="mr-4"></AppIcon>
+              {{ $t('views.application.generateDialog.label') }}
+            </el-button>
+          </template>
+        </CodemirrorEditor>
       </div>
       <h4 class="title-decoration-1 mb-16 mt-16">
         {{ $t('common.param.outputParam') }}
@@ -217,6 +231,7 @@
     <FieldFormDialog ref="FieldFormDialogRef" @refresh="refreshFieldList" />
     <UserFieldFormDialog ref="UserFieldFormDialogRef" @refresh="refreshInitFieldList" />
     <EditAvatarDialog ref="EditAvatarDialogRef" @refresh="refreshTool" />
+    <GenerateCodeDialog ref="GenerateCodeDialogRef" :toolData="form" @replace="replaceCode" />
   </el-drawer>
 </template>
 
@@ -237,6 +252,7 @@ import { useRoute } from 'vue-router'
 import useStore from '@/stores'
 import permissionMap from '@/permission'
 import { loadSharedApi } from '@/utils/dynamics-api/shared-api'
+import GenerateCodeDialog from '@/views/tool/component/GenerateCodeDialog.vue'
 const route = useRoute()
 
 const props = defineProps({
@@ -265,6 +281,7 @@ const UserFieldFormDialogRef = ref()
 const EditAvatarDialogRef = ref()
 const initFieldTableRef = ref()
 const inputFieldTableRef = ref()
+const GenerateCodeDialogRef = ref()
 
 const FormRef = ref()
 
@@ -392,6 +409,16 @@ function openEditAvatar() {
   EditAvatarDialogRef.value.open(form.value)
 }
 
+function openGenerateCodeDialog() {
+  GenerateCodeDialogRef.value?.open(form.value.init_field_list, form.value.input_field_list)
+}
+
+function replaceCode(code: string) {
+  const match = code.replace('```python', '').replace('```', '')
+  form.value.code = match
+  MsgSuccess(t('views.document.tip.replaceSuccess'))
+}
+
 const submit = async (formEl: FormInstance | undefined) => {
   if (!formEl) return
   await formEl.validate((valid: any) => {
@@ -403,11 +430,11 @@ const submit = async (formEl: FormInstance | undefined) => {
           .then((res: any) => {
             MsgSuccess(t('common.editSuccess'))
             emit('refresh', res.data)
-            return user.profile()
+            return user.profile().then(() => {
+              visible.value = false
+            })
           })
-          .then(() => {
-            visible.value = false
-          })
+
           .finally(() => {
             loading.value = false
           })
@@ -421,10 +448,9 @@ const submit = async (formEl: FormInstance | undefined) => {
           .then((res: any) => {
             MsgSuccess(t('common.createSuccess'))
             emit('refresh')
-            return user.profile()
-          })
-          .then(() => {
-            visible.value = false
+            return user.profile().then(() => {
+              visible.value = false
+            })
           })
           .finally(() => {
             loading.value = false

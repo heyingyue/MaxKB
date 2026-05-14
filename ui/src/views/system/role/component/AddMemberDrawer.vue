@@ -23,12 +23,10 @@
 
 <script setup lang="ts">
 import {onBeforeMount, ref} from 'vue'
-import type {CreateMemberParamsItem, FormItemModel} from '@/api/type/role'
+import type {CreateMemberParamsItem, FormItemModel, RoleItem} from '@/api/type/role'
 import UserApi from '@/api/user/user'
-import WorkspaceApi from '@/api/workspace/workspace'
 import MemberFormContent from './MemberFormContent.vue'
 import {t} from '@/locales'
-import type {RoleItem} from '@/api/type/role'
 import {MsgSuccess} from '@/utils/message'
 import {RoleTypeEnum} from '@/enums/system'
 import {loadPermissionApi} from '@/utils/dynamics-api/permission-api'
@@ -51,10 +49,21 @@ const memberFormContentLoading = ref(false)
 const formItemModel = ref<FormItemModel[]>([])
 const userFormItem = ref<FormItemModel[]>([])
 const workspaceFormItem = ref<FormItemModel[]>([])
+const userOptions = ref<Array<{ label: string; value: string }>>([])
 
 async function getUserFormItem() {
   try {
-    const res = await UserApi.getUserList(memberFormContentLoading)
+    const fetchUserOptions = async (query?: string) => {
+      const res = await UserApi.getUserList(query ? {nick_name: query} : {}, memberFormContentLoading)
+      return res.data?.map((item) => ({
+        label: item.nick_name,
+        value: item.id,
+      })) || []
+    }
+
+    // 初始加载
+    userOptions.value = await fetchUserOptions()
+
     userFormItem.value = [
       {
         path: 'user_ids',
@@ -66,12 +75,20 @@ async function getUserFormItem() {
           },
         ],
         selectProps: {
-          options:
-            res.data?.map((item) => ({
-              label: item.nick_name,
-              value: item.id,
-            })) || [],
+          options: userOptions.value,
           placeholder: `${t('common.selectPlaceholder')}${t('views.role.member.title')}`,
+          remoteMethod: async (query: string, element: any) => {
+            // 关键：直接更新 selectProps.options
+            const newOptions = await fetchUserOptions(query)
+            // 更新当前项的 options
+            const currentItem = userFormItem.value.find(
+              item => item.path === 'user_ids'
+            )
+            if (currentItem?.selectProps) {
+              currentItem.selectProps.options = newOptions
+            }
+            return newOptions
+          }
         },
       },
     ]

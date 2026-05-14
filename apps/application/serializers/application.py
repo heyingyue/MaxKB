@@ -31,6 +31,7 @@ from rest_framework import serializers, status
 from rest_framework.utils.formatting import lazy_format
 
 from application.flow.common import Workflow
+from application.long_term_memory import schedule_extract_long_term_memory
 from application.models.application import Application, ApplicationTypeChoices, \
     ApplicationFolder, ApplicationVersion
 from application.models.application_access_token import ApplicationAccessToken
@@ -44,16 +45,19 @@ from common.field.common import UploadedFileField
 from common.utils.common import get_file_content, restricted_loads, generate_uuid, _remove_empty_lines, \
     bytes_to_uploaded_file
 from common.utils.logger import maxkb_logger
+from common.utils.tool_code import ToolExecutor
 from knowledge.models import Knowledge, KnowledgeScope, File, FileSourceType
+from knowledge.serializers.common import BatchSerializer, BatchMoveSerializer
 from knowledge.serializers.knowledge import KnowledgeSerializer, KnowledgeModelSerializer
 from maxkb.conf import PROJECT_DIR
+from maxkb.const import CONFIG
 from models_provider.models import Model
 from models_provider.tools import get_model_instance_by_model_workspace_id
 from system_manage.models import WorkspaceUserResourcePermission, AuthTargetType
 from system_manage.models.resource_mapping import ResourceMapping
 from system_manage.serializers.resource_mapping_serializers import ResourceMappingSerializer
 from system_manage.serializers.user_resource_permission import UserResourcePermissionSerializer
-from tools.models import Tool, ToolScope, ToolType
+from tools.models import Tool, ToolScope, ToolType, ToolWorkflow
 from tools.serializers.tool import ToolExportModelSerializer
 from trigger.models import TriggerTask, Trigger
 from users.models import User
@@ -91,6 +95,10 @@ def hand_node(node, update_tool_map):
         mcp_tool_id = (node.get('properties', {}).get('node_data', {}).get('mcp_tool_id') or '')
         node.get('properties', {}).get('node_data', {})['mcp_tool_id'] = update_tool_map.get(mcp_tool_id,
                                                                                              mcp_tool_id)
+    if node.get('type') == 'tool-workflow-lib-node':
+        tool_lib_id = (node.get('properties', {}).get('node_data', {}).get('tool_lib_id') or '')
+        node.get('properties', {}).get('node_data', {})['tool_lib_id'] = update_tool_map.get(tool_lib_id,
+                                                                                             tool_lib_id)
 
 
 class MKInstance:
@@ -328,12 +336,13 @@ class ApplicationCreateSerializer(serializers.Serializer):
 
 class ApplicationQueryRequest(serializers.Serializer):
     folder_id = serializers.CharField(required=False, label=_("folder id"))
-    name = serializers.CharField(required=False, label=_('Application Name'))
-    desc = serializers.CharField(required=False, label=_("Application Description"))
+    name = serializers.CharField(required=False, allow_null=True, allow_blank=True, label=_('Application Name'))
+    desc = serializers.CharField(required=False, allow_null=True, allow_blank=True, label=_("Application Description"))
     publish_status = serializers.ChoiceField(required=False, label=_("Publish status"),
                                              choices=[('published', _("Published")),
                                                       ('unpublished', _("Unpublished"))])
     user_id = serializers.UUIDField(required=False, label=_("User ID"))
+    create_user = serializers.CharField(required=False, allow_null=True, allow_blank=True, label=_('create user'))
 
 
 class ApplicationListResponse(serializers.Serializer):
@@ -406,10 +415,11 @@ class Query(serializers.Serializer):
         self.is_valid(raise_exception=True)
         workspace_id = self.data.get('workspace_id')
         user_id = self.data.get("user_id")
-        ApplicationQueryRequest(data=instance).is_valid(raise_exception=True)
+        req_dict = ApplicationQueryRequest(data=instance)
+        req_dict.is_valid(raise_exception=True)
         workspace_manage = is_workspace_manage(user_id, workspace_id)
         is_x_pack_ee = self.is_x_pack_ee()
-        return native_search(self.get_query_set(instance, workspace_manage, is_x_pack_ee),
+        return native_search(self.get_query_set(req_dict.data, workspace_manage, is_x_pack_ee),
                              select_string=get_file_content(
                                  os.path.join(PROJECT_DIR, "apps", "application", 'sql',
                                               'list_application.sql' if workspace_manage else (
@@ -418,13 +428,14 @@ class Query(serializers.Serializer):
 
     def page(self, current_page: int, page_size: int, instance: Dict):
         self.is_valid(raise_exception=True)
-        ApplicationQueryRequest(data=instance).is_valid(raise_exception=True)
+        req_dict = ApplicationQueryRequest(data=instance)
+        req_dict.is_valid(raise_exception=True)
         workspace_id = self.data.get('workspace_id')
         user_id = self.data.get("user_id")
         workspace_manage = is_workspace_manage(user_id, workspace_id)
         is_x_pack_ee = self.is_x_pack_ee()
         result = native_page_search(current_page, page_size,
-                                    self.get_query_set(instance, workspace_manage, is_x_pack_ee),
+                                    self.get_query_set(req_dict.data, workspace_manage, is_x_pack_ee),
                                     get_file_content(
                                         os.path.join(PROJECT_DIR, "apps", "application", 'sql',
                                                      'list_application.sql' if workspace_manage else (
@@ -511,6 +522,8 @@ class ApplicationSerializer(serializers.Serializer):
         self.is_valid(raise_exception=True)
         work_flow_template = instance.get('work_flow_template')
         download_url = work_flow_template.get('downloadUrl')
+        if not download_url.startswith('https://apps-assets.fit2cloud.com/'):
+            raise AppApiException(500, _("Illegal download url"))
         # 查找匹配的版本名称
         res = requests.get(download_url, timeout=5)
         app = ApplicationSerializer(
@@ -626,6 +639,12 @@ class ApplicationSerializer(serializers.Serializer):
         if is_import_tool:
             if len(tool_model_list) > 0:
                 QuerySet(Tool).bulk_create(tool_model_list)
+                QuerySet(ToolWorkflow).bulk_create(
+                    [ToolWorkflow(workspace_id=workspace_id,
+                                  work_flow=self.reset_workflow(tool.get('work_flow'), update_tool_map),
+                                  tool_id=tool.get('id'))
+                     for
+                     tool in tool_list if tool.get('tool_type') == ToolType.WORKFLOW])
                 UserResourcePermissionSerializer(data={
                     'workspace_id': self.data.get('workspace_id'),
                     'user_id': self.data.get('user_id'),
@@ -669,6 +688,15 @@ class ApplicationSerializer(serializers.Serializer):
                     workspace_id=workspace_id)
 
     @staticmethod
+    def reset_workflow(work_flow, update_tool_map):
+        for node in work_flow.get('nodes', []):
+            hand_node(node, update_tool_map)
+            if node.get('type') == 'loop-node':
+                for n in node.get('properties', {}).get('node_data', {}).get('loop_body', {}).get('nodes', []):
+                    hand_node(n, update_tool_map)
+        return work_flow
+
+    @staticmethod
     def to_application(application, workspace_id, user_id, update_tool_map, folder_id):
         work_flow = application.get('work_flow')
         for node in work_flow.get('nodes', []):
@@ -676,36 +704,38 @@ class ApplicationSerializer(serializers.Serializer):
             if node.get('type') == 'loop-node':
                 for n in node.get('properties', {}).get('node_data', {}).get('loop_body', {}).get('nodes', []):
                     hand_node(n, update_tool_map)
-        return Application(id=uuid.uuid7(),
-                           user_id=user_id,
-                           name=application.get('name'),
-                           workspace_id=workspace_id,
-                           folder_id=folder_id,
-                           desc=application.get('desc'),
-                           prologue=application.get('prologue'), dialogue_number=application.get('dialogue_number'),
-                           knowledge_setting=application.get('knowledge_setting'),
-                           model_setting=application.get('model_setting'),
-                           model_params_setting=application.get('model_params_setting'),
-                           tts_model_params_setting=application.get('tts_model_params_setting'),
-                           problem_optimization=application.get('problem_optimization'),
-                           icon="./favicon.ico",
-                           work_flow=work_flow,
-                           type=application.get('type'),
-                           problem_optimization_prompt=application.get('problem_optimization_prompt'),
-                           tts_model_enable=application.get('tts_model_enable'),
-                           stt_model_enable=application.get('stt_model_enable'),
-                           tts_type=application.get('tts_type'),
-                           clean_time=application.get('clean_time'),
-                           file_clean_time=application.get('file_clean_time') or 180,
-                           file_upload_enable=application.get('file_upload_enable'),
-                           file_upload_setting=application.get('file_upload_setting'),
-                           tool_ids=[update_tool_map.get(tool_id, tool_id) for tool_id in
-                                     application.get('tool_ids', [])],
-                           skill_tool_ids=[update_tool_map.get(tool_id, tool_id) for tool_id in
-                                           application.get('skill_tool_ids', [])],
-                           mcp_tool_ids=[update_tool_map.get(tool_id, tool_id) for tool_id in
-                                         application.get('mcp_tool_ids', [])],
-                           )
+        return Application(
+            id=uuid.uuid7(),
+            user_id=user_id,
+            name=application.get('name'),
+            workspace_id=workspace_id,
+            folder_id=folder_id,
+            desc=application.get('desc'),
+            prologue=application.get('prologue'), dialogue_number=application.get('dialogue_number'),
+            knowledge_setting=application.get('knowledge_setting'),
+            model_setting=application.get('model_setting'),
+            model_params_setting=application.get('model_params_setting'),
+            tts_model_params_setting=application.get('tts_model_params_setting'),
+            problem_optimization=application.get('problem_optimization'),
+            icon="./favicon.ico",
+            work_flow=work_flow,
+            type=application.get('type'),
+            problem_optimization_prompt=application.get('problem_optimization_prompt'),
+            tts_model_enable=application.get('tts_model_enable'),
+            stt_model_enable=application.get('stt_model_enable'),
+            tts_type=application.get('tts_type'),
+            clean_time=application.get('clean_time'),
+            file_clean_time=application.get('file_clean_time') or 180,
+            file_upload_enable=application.get('file_upload_enable'),
+            file_upload_setting=application.get('file_upload_setting'),
+            long_term_enable=application.get('long_term_enable') or False,
+            long_term_model_params_setting=application.get('long_term_model_params_setting') or {},
+            long_term_trigger_type=application.get('long_term_trigger_type') or 'ROUND',
+            long_term_trigger_setting=application.get('long_term_trigger_setting') or {},
+            tool_ids=[update_tool_map.get(tool_id, tool_id) for tool_id in application.get('tool_ids', [])],
+            skill_tool_ids=[update_tool_map.get(tool_id, tool_id) for tool_id in application.get('skill_tool_ids', [])],
+            mcp_tool_ids=[update_tool_map.get(tool_id, tool_id) for tool_id in application.get('mcp_tool_ids', [])],
+        )
 
     class StoreApplication(serializers.Serializer):
         user_id = serializers.UUIDField(required=True, label=_("User ID"))
@@ -715,7 +745,8 @@ class ApplicationSerializer(serializers.Serializer):
             self.is_valid(raise_exception=True)
             # 下载zip文件
             try:
-                res = requests.get('https://apps-assets.fit2cloud.com/stable/maxkb.json.zip', timeout=5)
+                appstore_url = CONFIG.get('APPSTORE_URL', 'https://apps-assets.fit2cloud.com/stable/maxkb.json.zip')
+                res = requests.get(appstore_url, timeout=5)
                 res.raise_for_status()
                 # 创建临时文件保存zip
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
@@ -822,6 +853,7 @@ class ApplicationOperateSerializer(serializers.Serializer):
         QuerySet(ResourceMapping).filter(
             Q(target_id=application_id) | Q(source_id=application_id)
         ).delete()
+        QuerySet(WorkspaceUserResourcePermission).filter(target=application_id).delete()
         QuerySet(Application).filter(id=application_id).delete()
         trigger_ids = list(
             QuerySet(TriggerTask).filter(
@@ -833,6 +865,8 @@ class ApplicationOperateSerializer(serializers.Serializer):
             trigger = Trigger.objects.filter(id=trigger_id['trigger_id']).first()
             if trigger and trigger.is_active:
                 deploy(TriggerModelSerializer(trigger).data, **{})
+        #
+        schedule_extract_long_term_memory(self.data.get('workspace_id'), application_id, False, None, None)
         return True
 
     def export(self, with_valid=True):
@@ -842,13 +876,16 @@ class ApplicationOperateSerializer(serializers.Serializer):
             application_id = self.data.get('application_id')
             application = QuerySet(Application).filter(id=application_id).first()
             from application.flow.tools import get_tool_id_list
-            tool_id_list = get_tool_id_list(application.work_flow)
+            tool_id_list = get_tool_id_list(application.work_flow, True)
             if len(tool_id_list) > 0:
                 tool_list = QuerySet(Tool).filter(id__in=tool_id_list).exclude(scope=ToolScope.SHARED)
             else:
                 tool_list = QuerySet(Tool).filter(
                     id__in=application.tool_ids + application.mcp_tool_ids + application.skill_tool_ids
                 ).exclude(scope=ToolScope.SHARED)
+            tw_dict = {tw.tool_id: tw
+                       for tw in QuerySet(ToolWorkflow).filter(
+                    tool_id__in=[tool.id for tool in tool_list if tool.tool_type == ToolType.WORKFLOW])}
             # 如果是技能工具，则需要将code字段转换为文件内容的base64字符串
             for tool in tool_list:
                 if tool.tool_type == ToolType.SKILL:
@@ -860,7 +897,7 @@ class ApplicationOperateSerializer(serializers.Serializer):
             mk_instance = MKInstance(application_dict,
                                      [],
                                      'v2',
-                                     [ToolExportModelSerializer(tool).data for tool in
+                                     [self.to_tool_dict(tool, tw_dict) for tool in
                                       tool_list])
             application_pickle = pickle.dumps(mk_instance)
             response = HttpResponse(content_type='text/plain', content=application_pickle)
@@ -868,6 +905,12 @@ class ApplicationOperateSerializer(serializers.Serializer):
             return response
         except Exception as e:
             return result.error(str(e), response_status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @staticmethod
+    def to_tool_dict(tool, tool_workflow_dict):
+        if tool.tool_type == ToolType.WORKFLOW:
+            return {**ToolExportModelSerializer(tool).data, 'work_flow': tool_workflow_dict.get(tool.id).work_flow}
+        return ToolExportModelSerializer(tool).data
 
     @staticmethod
     def reset_application_version(application_version, application):
@@ -929,7 +972,7 @@ class ApplicationOperateSerializer(serializers.Serializer):
         work_flow_version.save()
         access_token = hashlib.md5(
             str(uuid.uuid7()).encode()).hexdigest()[
-                       8:24]
+            8:24]
         application_access_token = QuerySet(ApplicationAccessToken).filter(
             application_id=application.id).first()
         if application_access_token is None:
@@ -975,6 +1018,16 @@ class ApplicationOperateSerializer(serializers.Serializer):
                     instance['file_upload_setting'] = node_data['file_upload_setting']
                 if 'name' in node_data:
                     instance['name'] = node_data['name']
+                if 'long_term_enable' in node_data:
+                    instance['long_term_enable'] = node_data['long_term_enable']
+                if 'long_term_model_id' in node_data:
+                    instance['long_term_model_id'] = node_data['long_term_model_id']
+                if 'long_term_model_params_setting' in node_data:
+                    instance['long_term_model_params_setting'] = node_data['long_term_model_params_setting']
+                if 'long_term_trigger_type' in node_data:
+                    instance['long_term_trigger_type'] = node_data['long_term_trigger_type']
+                if 'long_term_trigger_setting' in node_data:
+                    instance['long_term_trigger_setting'] = node_data['long_term_trigger_setting']
                 break
         knowledge_node_list = ApplicationOperateSerializer.get_search_node(instance.get('work_flow'))
         for knowledge_node in knowledge_node_list:
@@ -985,10 +1038,13 @@ class ApplicationOperateSerializer(serializers.Serializer):
             knowledge_id_list = node_data.get('knowledge_id_list') or []
             # 用户可以看到的知识库
             knowledge_list = node_data.get('knowledge_list') or []
+
+            no_permission_knowledge_id_list = node_data.get('no_permission_knowledge_id_list') or []
+
             view_knowledge_id_list = [knowledge.get('id') for knowledge in knowledge_list]
             other_knowledge_id_list = [knowledge_id for knowledge_id in all_knowledge_id_list if
                                        not view_knowledge_id_list.__contains__(knowledge_id)]
-            node_data['knowledge_id_list'] = other_knowledge_id_list + knowledge_id_list
+            node_data['knowledge_id_list'] = no_permission_knowledge_id_list + knowledge_id_list
 
     def move(self, folder_id: str):
         self.is_valid(raise_exception=True)
@@ -1032,9 +1088,18 @@ class ApplicationOperateSerializer(serializers.Serializer):
                 id=instance.get('tts_model_id')).first()
             if model is None:
                 raise AppApiException(500, _("Model does not exist"))
+        if instance.get('long_term_model_id') is None or len(instance.get('long_term_model_id')) == 0:
+            application.long_term_model_id = None
+        else:
+            model = QuerySet(Model).filter(
+                id=instance.get('long_term_model_id')).first()
+            if model is None:
+                raise AppApiException(500, _("Model does not exist"))
         if 'work_flow' in instance:
-            # 修改语音配置相关
+            # 把工作流中的字段提取到表上
             self.update_work_flow_model(instance)
+        if 'mcp_servers' in instance and len(instance.get('mcp_servers', {})) > 0:
+            ToolExecutor().validate_mcp_transport(json.dumps(instance.get('mcp_servers')))
         update_keys = ['name', 'desc', 'model_id', 'multiple_rounds_dialogue', 'prologue', 'status',
                        'knowledge_setting', 'model_setting', 'problem_optimization', 'dialogue_number',
                        'stt_model_id', 'tts_model_id', 'tts_model_enable', 'stt_model_enable', 'tts_type',
@@ -1043,6 +1108,8 @@ class ApplicationOperateSerializer(serializers.Serializer):
                        'stt_model_params_setting',
                        'mcp_enable', 'mcp_tool_ids', 'mcp_servers', 'mcp_source', 'tool_enable', 'tool_ids',
                        'mcp_output_enable', 'application_enable', 'application_ids', 'skill_tool_ids',
+                       'long_term_enable', 'long_term_model_id', 'long_term_model_params_setting',
+                       'long_term_trigger_setting', 'long_term_trigger_type',
                        'problem_optimization_prompt', 'clean_time', 'file_clean_time', 'folder_id']
         for update_key in update_keys:
             if update_key in instance and instance.get(update_key) is not None:
@@ -1067,12 +1134,18 @@ class ApplicationOperateSerializer(serializers.Serializer):
                                                self.get_application_knowledge_mapping(application_knowledge_id_list,
                                                                                       knowledge_id_list,
                                                                                       application_id))
+        schedule_extract_long_term_memory.delay(
+            application.workspace_id, application_id,
+            application.long_term_enable, application.long_term_trigger_type, application.long_term_trigger_setting
+        )
         return self.one(with_valid=False)
 
     def update_template_workflow(self, instance: Dict, app: Application):
         self.is_valid(raise_exception=True)
         work_flow_template = instance.get('work_flow_template')
         download_url = work_flow_template.get('downloadUrl')
+        if not download_url.startswith('https://apps-assets.fit2cloud.com/'):
+            raise AppApiException(500, _("Illegal download url"))
         # 查找匹配的版本名称
         res = requests.get(download_url, timeout=5)
         try:
@@ -1203,6 +1276,7 @@ class ApplicationOperateSerializer(serializers.Serializer):
             knowledge_list = [available_knowledge_dict.get(knowledge_id) for knowledge_id in knowledge_id_list if
                               available_knowledge_dict.__contains__(knowledge_id)]
             node_data['all_knowledge_id_list'] = knowledge_id_list
+            node_data['no_permission_knowledge_id_list'] = [knowledge_id for knowledge_id in knowledge_id_list if not available_knowledge_dict.__contains__(knowledge_id) ]
             node_data['knowledge_id_list'] = [knowledge.get('id') for knowledge in knowledge_list]
             node_data['knowledge_list'] = knowledge_list
 
@@ -1311,3 +1385,56 @@ class ApplicationOperateSerializer(serializers.Serializer):
         tts_model_id = instance.pop('tts_model_id')
         model = get_model_instance_by_model_workspace_id(tts_model_id, self.data.get('workspace_id'), **instance)
         return model.text_to_speech(text)
+
+
+class ApplicationBatchOperateSerializer(serializers.Serializer):
+    workspace_id = serializers.CharField(required=True, label=_("Workspace ID"))
+
+    def is_valid(self, *, raise_exception=False):
+        super().is_valid(raise_exception=True)
+
+    @transaction.atomic
+    def batch_delete(self, instance: Dict, with_valid=True):
+        from trigger.handler.simple_tools import deploy
+        from trigger.serializers.trigger import TriggerModelSerializer
+
+        if with_valid:
+            BatchSerializer(data=instance).is_valid(model=Application, raise_exception=True)
+            self.is_valid(raise_exception=True)
+        id_list = instance.get("id_list")
+        workspace_id = self.data.get('workspace_id')
+
+        QuerySet(ApplicationVersion).filter(application_id__in=id_list).delete()
+        QuerySet(ResourceMapping).filter(
+            Q(target_id__in=id_list) | Q(source_id__in=id_list)
+        ).delete()
+        QuerySet(WorkspaceUserResourcePermission).filter(target__in=id_list).delete()
+
+        QuerySet(Application).filter(id__in=id_list, workspace_id=workspace_id).delete()
+
+        trigger_ids = list(
+            QuerySet(TriggerTask).filter(
+                source_type="APPLICATION", source_id__in=id_list
+            ).values('trigger_id').distinct()
+        )
+        QuerySet(TriggerTask).filter(source_type="APPLICATION", source_id__in=id_list).delete()
+
+        for trigger_id in trigger_ids:
+            trigger = Trigger.objects.filter(id=trigger_id['trigger_id']).first()
+            if trigger and trigger.is_active:
+                deploy(TriggerModelSerializer(trigger).data, **{})
+
+        for app_id in id_list:
+            schedule_extract_long_term_memory(self.data.get('workspace_id'), app_id, False, None, None)
+        return True
+
+    def batch_move(self, instance: Dict, with_valid=True):
+        if with_valid:
+            BatchMoveSerializer(data=instance).is_valid(model=Application, raise_exception=True)
+            self.is_valid(raise_exception=True)
+        id_list = instance.get("id_list")
+        folder_id = instance.get("folder_id")
+        workspace_id = self.data.get('workspace_id')
+
+        QuerySet(Application).filter(id__in=id_list, workspace_id=workspace_id).update(folder_id=folder_id)
+        return True

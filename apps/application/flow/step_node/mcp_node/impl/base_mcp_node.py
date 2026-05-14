@@ -9,6 +9,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from application.flow.i_step_node import NodeResult
 from application.flow.step_node.mcp_node.i_mcp_node import IMcpNode
 from tools.models import Tool
+from common.utils.tool_code import ToolExecutor
 
 
 class BaseMcpNode(IMcpNode):
@@ -28,14 +29,13 @@ class BaseMcpNode(IMcpNode):
             if not tool.is_active:
                 raise ValueError(f"Tool with ID {mcp_tool_id} is inactive.")
             servers = json.loads(tool.code)
-            servers = self.handle_variables(servers)  # 处理servers中的变量
-            params = json.loads(json.dumps(tool_params))
-            params = self.handle_variables(params)
         else:
             servers = json.loads(mcp_servers)
-            servers = self.handle_variables(servers)  # 处理servers中的变量
-            params = json.loads(json.dumps(tool_params))
-            params = self.handle_variables(params)
+
+        servers = self.handle_variables(servers)  # 处理servers中的变量
+        ToolExecutor().validate_mcp_transport(json.dumps(servers))
+        params = json.loads(json.dumps(tool_params))
+        params = self.handle_variables(params)
 
         async def call_tool(t, a):
             client = MultiServerMCPClient(servers)
@@ -51,9 +51,9 @@ class BaseMcpNode(IMcpNode):
         for k, v in tool_params.items():
             if type(v) == str:
                 tool_params[k] = self.workflow_manage.generate_prompt(tool_params[k])
-            if type(v) == dict:
+            elif type(v) == dict:
                 self.handle_variables(v)
-            if (type(v) == list) and (type(v[0]) == str):
+            elif (type(v) == list) and len(v) > 0 and (type(v[0]) == str):
                 tool_params[k] = self.get_reference_content(v)
         return tool_params
 
